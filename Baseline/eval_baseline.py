@@ -125,7 +125,10 @@ def evaluate(args, ds, envs, outdata, outpath, agent, judge, benchmark):
                                 'tool_call_id': m_gpt['tool_calls'][0]['id'],
                                 'tool_name': m_gpt['tool_calls'][0]['function']['name'],
                                 'arguments': arguments}
-                    envs[d_i].step(tool_call)
+                    try:
+                        envs[d_i].step(tool_call)
+                    except Exception as e:
+                        logging.warning(f"Replay step failed for item {d.get('id')}: {e}")
 
         # Re-reset agent with environments (same as second system.reset in original line 164)
         agent.reset(envs)
