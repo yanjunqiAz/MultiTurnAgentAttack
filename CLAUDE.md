@@ -44,6 +44,23 @@ python -m Baseline.run_baseline_pipeline --dataset shade               # direct 
 python -m Baseline.eval_baseline --input_path data/toolshield_shade_stac.json --model_agent gpt-4.1
 ```
 
+### Tests
+```bash
+python -m pytest tests/ -v                          # Core module tests (utils, STAC, LMs, environments)
+python -m pytest Baseline/tests/test_baseline.py -v  # Baseline pipeline tests
+python -m pytest tests/ Baseline/tests/ -v           # All tests
+```
+
+No API keys or GPUs required for tests. Test coverage:
+
+| File | Tests | Coverage |
+|------|-------|----------|
+| `tests/test_utils.py` | 53 | `str2json`, `batchify`, `gen_tool_call_id`, `get_failure_mode`, `get_json_type_as_string`, `get_schema_from_annotation`, `convert_message_between_APIs` |
+| `tests/test_stac.py` | 25 | JSON validation for `BaseLM`, `Generator`, `Judge`, `Planner`, `PromptWriter` (boundary scores, missing fields, malformed structures) |
+| `tests/test_language_models.py` | 27 | `LM` base class, `OpenAILM.format_prompts` (spotlighting, sys prompt), `BedrockLM.format_prompts`/`convert_messages_format`, sys prompt handling |
+| `tests/test_environments.py` | 61 | `SHADEArenaEnvironment` (4 envs × 3 model types: tool config, init, step, env/tool info), `AgentSafetyBenchEnvironment` (init, step, reset) |
+| `Baseline/tests/test_baseline.py` | 30+ | `compute_metrics`, tool name resolution, STAC format conversion, config loading, YAML validation |
+
 ## Architecture
 
 ### Core modules (`src/`)
@@ -101,4 +118,7 @@ Five options passed via `--defense`: `no_defense`, `failure_modes`, `summarizati
 - Tool config formatting differs per model type. Check `model_id` string to determine format (Bedrock dict vs OpenAI list vs vLLM XML-wrapped string).
 - Environment `step()` returns model-specific message formats — Bedrock uses `toolResult` nested in `content` list, OpenAI uses flat `tool` role messages.
 - Ray is used for vLLM models; `ensure_ray_initialized()` from `src/utils.py` must be called before creating `VllmLM` actors.
-- Output files go under `data/Eval/` (STAC_eval), `data/` (generation outputs), and `output/` (baseline attack artifacts).
+- Output paths: `data/Eval/{model_planner}/{model_agent}/{defense}/gen_res.json` (STAC_eval), `data/` (generation step outputs), `output/` (baseline ToolShield attack artifacts).
+- Batch size tip: start with `--batch_size 2` to verify a script works, then scale up. OpenAI models support 512; Bedrock models ~10; vLLM depends on GPU count.
+- Baseline requires ToolShield (`pip install git+https://github.com/CHATS-lab/ToolShield.git`) and LiteLLM for the `generate` step only. The `evaluate` step needs only STAC dependencies.
+- `toolshield_patch.py` monkey-patches ToolShield at runtime to use LiteLLM instead of its hardcoded OpenRouter client.
