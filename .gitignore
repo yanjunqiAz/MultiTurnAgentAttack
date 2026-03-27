@@ -6,3 +6,5 @@
 /src/toolshield
 *.out
 Baseline/configs.yaml
+/logs
+STAC_eval/configs.yaml
