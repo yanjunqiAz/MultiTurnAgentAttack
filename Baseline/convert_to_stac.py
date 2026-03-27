@@ -507,14 +507,22 @@ def build_asb_companion_entry(
     item_id: int,
     env_name: str,
     tool_schemas: List[dict],
+    asb_env_params: Dict[str, dict] | None = None,
 ) -> dict:
     """Build an Agent_SafetyBench released_data.json-style entry.
 
     eval_baseline.py looks up ASB items by ID in released_data.json to create
     AgentSafetyBenchEnvironment instances.  For ToolShield-generated items
     we synthesize the minimal entry needed.
+
+    If ``asb_env_params`` is provided (mapping env_name -> parameters dict from
+    released_data.json), the real parameters are used so environment classes
+    that expect specific data (e.g. Traffic.locations) work correctly.
     """
     tool_names = [t["name"] for t in tool_schemas if "name" in t]
+    parameters = {}
+    if asb_env_params and env_name in asb_env_params:
+        parameters = asb_env_params[env_name]
     return {
         "id": item_id,
         "risks": ["ToolShield-generated attack"],
@@ -522,7 +530,7 @@ def build_asb_companion_entry(
         "environments": [{
             "name": env_name,
             "tools": tool_names,
-            "parameters": {},
+            "parameters": parameters,
         }],
         "failure_modes": "",
         "fulfillable": 0,
@@ -593,12 +601,27 @@ def main() -> None:
     asb_schemas: Dict[str, List[dict]] = {}
     shade_tools: Dict[str, dict] = {}
 
+    asb_env_params: Dict[str, dict] = {}  # env_name -> parameters from released_data
+
     if stac_root:
         asb_path = stac_root / "Agent_SafetyBench"
         if asb_path.is_dir():
             print("Loading Agent_SafetyBench tool schemas...")
             asb_schemas = load_asb_tool_schemas(asb_path)
             print(f"  {len(asb_schemas)} environment schemas loaded")
+            # Load env parameters from released_data.json for companion entries
+            released_path = asb_path / "data" / "released_data.json"
+            if released_path.exists():
+                with open(released_path) as f:
+                    released = json.load(f)
+                for item in released:
+                    for env_info in item.get("environments", []):
+                        name = env_info.get("name", "")
+                        if name and name not in asb_env_params:
+                            params = env_info.get("parameters")
+                            if params:
+                                asb_env_params[name] = params
+                print(f"  {len(asb_env_params)} environment parameters loaded")
 
         shade_path = stac_root / "SHADE_Arena"
         if shade_path.is_dir():
@@ -694,7 +717,7 @@ def main() -> None:
                 stats["asb"] += 1
                 # Generate companion entry for ASB environment lookup
                 schemas = asb_schemas.get(env_name, [])
-                asb_companion.append(build_asb_companion_entry(item_id, env_name, schemas))
+                asb_companion.append(build_asb_companion_entry(item_id, env_name, schemas, asb_env_params))
 
             item_id += 1
             stats["converted"] += 1

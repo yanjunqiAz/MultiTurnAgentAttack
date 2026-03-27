@@ -206,7 +206,8 @@ def step_convert(args: argparse.Namespace) -> None:
         if attack_dir.is_dir():
             cmd = [sys.executable, "-m", "Baseline.convert_to_stac",
                    "--toolshield-output", SHADE_ATTACK_DIR,
-                   "--output", SHADE_STAC_PATH]
+                   "--output", SHADE_STAC_PATH,
+                   "--dataset", "SHADE_Arena"]
             run_cmd(cmd, "Convert SHADE-Arena attacks to STAC format")
         else:
             print(f"  Skipping SHADE convert: {attack_dir} not found")
@@ -216,7 +217,8 @@ def step_convert(args: argparse.Namespace) -> None:
         if attack_dir.is_dir():
             cmd = [sys.executable, "-m", "Baseline.convert_to_stac",
                    "--toolshield-output", ASB_ATTACK_DIR,
-                   "--output", ASB_STAC_PATH]
+                   "--output", ASB_STAC_PATH,
+                   "--dataset", "Agent_SafetyBench"]
             run_cmd(cmd, "Convert Agent_SafetyBench attacks to STAC format")
         else:
             print(f"  Skipping ASB convert: {attack_dir} not found")

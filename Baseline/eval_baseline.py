@@ -41,6 +41,7 @@ import os
 import logging
 import datetime
 from copy import deepcopy
+from pathlib import Path
 
 import numpy as np
 from tqdm import tqdm, trange
@@ -290,6 +291,16 @@ def main():
     with open('Agent_SafetyBench/data/released_data.json') as f:
         asb_data = json.load(f)
     asb_data_lookup = {d['id']: d for d in asb_data}
+
+    # Also load ToolShield-generated ASB env data if available (IDs 10000+)
+    input_stem = Path(args.input_path).stem
+    asb_envs_path = Path(args.input_path).parent / f"{input_stem}_asb_envs.json"
+    if asb_envs_path.exists():
+        with open(asb_envs_path, 'r', encoding='utf-8') as f:
+            extra_asb = json.load(f)
+        for d in extra_asb:
+            if d['id'] not in asb_data_lookup:
+                asb_data_lookup[d['id']] = d
 
     # Process interaction history (identical to original lines 206-219)
     # Trim to keep only turns before the last step (the last step is what we evaluate)
