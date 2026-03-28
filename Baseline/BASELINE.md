@@ -51,7 +51,9 @@ python -m Baseline.run_baseline_pipeline --steps generate convert --dataset shad
 ## Pipeline Overview
 
 `run_baseline_pipeline.py` orchestrates the steps below. Use `--dataset` to select
-which path(s) to run (`shade`, `asb`, or `both`).
+which path(s) to run (`shade`, `asb`, or `both`). After conversion, the STAC-format
+data can be evaluated with either `eval_baseline.py` (no planner) or the full
+`STAC_eval/eval_STAC_benchmark.py` (adaptive planner).
 
 ```
 run_baseline_pipeline.py --dataset shade        run_baseline_pipeline.py --dataset asb
@@ -66,9 +68,12 @@ generate_shade_attacks.py              attack_safetybench.py
                     convert_to_stac.py
               (ToolShield output -> STAC JSON)
                            |
-                           v
-                    eval_baseline.py
-            (agent execution + LLM judge scoring)
+              +------------+------------+
+              |                         |
+              v                         v
+       eval_baseline.py        STAC_eval/eval_STAC_benchmark.py
+    (no planner, pre-gen       (full adaptive planning:
+     prompts only, judge)       Planner + Agent + Judge)
 ```
 
 ## Prerequisites
@@ -210,6 +215,13 @@ For ASB items, a companion `*_asb_envs.json` file is also generated -- merge it 
 
 ## Step 3: Evaluate
 
+There are two evaluation paths for ToolShield-generated attacks:
+
+### Option A: `eval_baseline.py` (No Planner)
+
+Sends pre-generated attack prompts directly to the agent without adaptive
+replanning. Simpler and faster -- best for measuring raw ToolShield attack quality.
+
 ```bash
 # Evaluate SHADE-Arena attacks against GPT-4.1
 python -m Baseline.eval_baseline \
@@ -231,6 +243,26 @@ python -m Baseline.eval_baseline \
     --defense no_defense \
     --region us-west-2
 ```
+
+### Option B: `STAC_eval/eval_STAC_benchmark.py` (With Adaptive Planner)
+
+Runs the full STAC adaptive planning system (Planner + Agent + Judge loop) on
+the ToolShield-generated data. The Planner dynamically adjusts attack prompts
+across multiple turns based on agent responses and judge feedback, giving
+ToolShield attacks the same multi-turn adaptive evaluation used for STAC attacks.
+
+```bash
+# Evaluate ToolShield SHADE attacks with full adaptive planning
+python -m STAC_eval.eval_STAC_benchmark \
+    --input_path data/toolshield_shade_stac.json \
+    --model_agent gpt-4.1 \
+    --defense no_defense \
+    --batch_size 512
+```
+
+This is the same evaluator used for the STAC benchmark (`data/STAC_benchmark_data.json`),
+pointed at the ToolShield-converted data instead. Results go to
+`data/Eval/<model_planner>/<model_agent>/<defense>/gen_res.json`.
 
 ### Defense Options
 
@@ -266,6 +298,7 @@ Results are saved to `data/Eval/<model_agent>/<defense>/`:
 | `generate_shade_attacks.py` | Generate ToolShield attacks for SHADE-Arena |
 | `attack_safetybench.py` | Generate ToolShield attacks for Agent_SafetyBench |
 | `convert_to_stac.py` | Convert ToolShield output -> STAC benchmark JSON |
-| `eval_baseline.py` | Evaluate attacks: agent execution + LLM judge |
+| `eval_baseline.py` | Evaluate attacks without planner: agent execution + LLM judge |
+| `STAC_eval/eval_STAC_benchmark.py` | Evaluate attacks with full adaptive planning (Planner + Agent + Judge) |
 | `toolshield_patch.py` | Monkey-patches ToolShield to use LiteLLM instead of OpenRouter (imported automatically) |
 | `shade_tool_extractor.py` | Helper library: extract tool schemas from SHADE-Arena (used by `generate_shade_attacks.py`) |
