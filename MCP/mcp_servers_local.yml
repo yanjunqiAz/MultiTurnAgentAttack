@@ -1,0 +1,15 @@
+# Local MCP servers via supergateway (Streamable HTTP transport).
+# Use with: --mcp_config MCP/mcp_servers_local.yml
+#
+# Start the server first:
+#   npx -y supergateway --port 9090 --outputTransport streamableHttp --stateful \
+#     --stdio "npx -y @modelcontextprotocol/server-filesystem /private/tmp"
+#
+# path_prefix remaps scenario paths: /workspace/foo -> /private/tmp/workspace/foo
+
+servers:
+  filesystem:
+    endpoint: "http://localhost:9090/mcp"
+    transport: streamable_http
+    adapter: filesystem
+    path_prefix: "/private/tmp"

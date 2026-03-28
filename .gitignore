@@ -1,10 +1,11 @@
 .DS_Store
 .idea/
 *.pyc
-/output
-/data
-/src/toolshield
 *.out
-Baseline/configs.yaml
+/output
 /logs
+/data
+Baseline/configs.yaml
 STAC_eval/configs.yaml
+STAC_gen/configs.yaml
+MCP/benchmarks_data/openagentsafety/

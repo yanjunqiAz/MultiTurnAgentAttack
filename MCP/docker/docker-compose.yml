@@ -1,0 +1,37 @@
+# MCP/docker/docker-compose.yml
+#
+# MCP servers for STAC evaluation, using official MCP Docker images
+# wrapped with supergateway to expose streamable-HTTP endpoints.
+#
+# All official MCP server images are stdio-only.  Supergateway converts
+# stdio ↔ streamable-HTTP so eval_mcp.py can reach them over the network.
+#
+# Usage:
+#   cd MCP/docker && docker compose up -d
+#   docker compose down   # to stop
+#
+# Verify servers are reachable:
+#   curl -s http://localhost:9090/mcp   # filesystem (expect 400 — normal)
+#   curl -s http://localhost:9092/mcp   # playwright  (expect 400 — normal)
+
+services:
+  filesystem:
+    image: supercorp/supergateway:latest
+    ports: ["9090:8000"]
+    command: >
+      --outputTransport streamableHttp --stateful --port 8000
+      --stdio "npx -y @modelcontextprotocol/server-filesystem /workspace"
+    volumes:
+      - workspace:/workspace
+    mem_limit: 512m
+
+  playwright:
+    image: supercorp/supergateway:latest
+    ports: ["9092:8000"]
+    command: >
+      --outputTransport streamableHttp --stateful --port 8000
+      --stdio "npx -y @playwright/mcp --headless"
+    mem_limit: 1g
+
+volumes:
+  workspace:

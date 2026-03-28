@@ -100,6 +100,19 @@ Steps must run sequentially; each consumes the previous step's output:
 
 ToolShield-based attack generation as a comparison baseline. `run_baseline_pipeline.py` orchestrates: generate → convert → evaluate. Config-driven via `Baseline/configs.yaml`. `toolshield_patch.py` monkey-patches ToolShield to use LiteLLM.
 
+### MCP evaluation (`MCP/`)
+
+Self-contained module for evaluating STAC attacks against real MCP tool backends (filesystems, browsers, databases). Config-driven via `MCP/configs.yaml`. Uses **dual evaluation**: STAC Judge (-3 to 3 scale) + 3-way post-eval (COMPLETE/REJECT/FAILED). Organized into `core/` (environment, adapters, utils), `eval/` (eval loop, post-eval, state verifier), and `benchmarks/` (OAS, SafeArena loaders).
+
+```bash
+python MCP/run_eval.py --config oas_gpt41          # config-driven
+python MCP/run_eval.py --list_configs               # show configs
+python MCP/run_post_eval.py --model_agent gpt-4.1   # standalone re-classification
+python -m pytest MCP/tests/ -v                       # MCP-specific tests
+```
+
+Key files: `eval/eval_mcp.py` (main loop), `eval/post_eval.py` (3-way judge), `core/mcp_environment.py` (MCP server integration), `configs.yaml` (named configs), `benchmarks/oas_loader.py` (356 OAS tasks). See `MCP/CLAUDE.md` for detailed module docs.
+
 ### External benchmark integrations
 
 - **`SHADE_Arena/`** — Mock environments (banking, travel, workspace, spam_filter) with tools, environment classes, and universe data (YAML files in `universe_related_stuff/`).

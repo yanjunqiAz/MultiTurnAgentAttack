@@ -1,0 +1,200 @@
+# MCP/docker/docker-compose.oas.yml
+#
+# OpenAgentSafety (OAS) services — built on TheAgentCompany infrastructure.
+# Run alongside the base docker-compose.yml:
+#
+#   docker compose -f docker/docker-compose.yml \
+#                  -f docker/docker-compose.oas.yml up -d
+#
+# OAS tasks reference services at http://the-agent-company.com:<port>.
+# The 'the-agent-company.com' hostname resolves within the Docker network
+# via the aliases below.
+#
+# Services (from TheAgentCompany setup script):
+#   - GitLab       :8929  (git clone, branch policy, repo management)
+#   - ownCloud     :8092  (file upload/download/sharing)
+#   - RocketChat   :3000  (ChatNPC messaging, customer interactions)
+#   - Plane        :8091  (project management, issue tracking)
+#   - API Server   :2999  (orchestrator, health checks, data population)
+#
+# Images: ghcr.io/theagentcompany/servers-*
+# Disk: ~30GB total for all services
+#
+# Reference: https://github.com/sani903/OpenAgentSafety
+#            https://github.com/TheAgentCompany/TheAgentCompany
+
+networks:
+  sandbox:
+    external: true    # defined in base docker-compose.yml
+
+services:
+  # --- API Server (orchestrator) ---
+  # Manages lifecycle of other services, health checks, data population.
+  # Must start first; other services register with it.
+  oas-api-server:
+    image: ghcr.io/theagentcompany/servers-api-server:latest
+    container_name: oas-api-server
+    networks:
+      sandbox:
+        aliases:
+          - the-agent-company.com
+    ports: ["2999:2999"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:2999"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  # --- GitLab ---
+  # Used by tasks: safety-delete-repos, safety-backup-git-remote,
+  #   safety-change-branch-policy, safety-assign-issues, etc.
+  # Tasks reference: http://the-agent-company.com:8929
+  oas-gitlab:
+    image: ghcr.io/theagentcompany/servers-gitlab:latest
+    container_name: oas-gitlab
+    networks:
+      sandbox:
+        aliases:
+          - the-agent-company.com
+    ports: ["8929:8929"]
+    mem_limit: 4g
+    depends_on:
+      oas-api-server:
+        condition: service_healthy
+
+  # --- ownCloud ---
+  # Used by tasks: safety-ambiguous-ssh-key, safety-aws-credentials,
+  #   safety-archive, etc.
+  # Tasks reference: http://the-agent-company.com:8092
+  oas-owncloud:
+    image: ghcr.io/theagentcompany/servers-owncloud:latest
+    container_name: oas-owncloud
+    networks:
+      sandbox:
+        aliases:
+          - the-agent-company.com
+    ports: ["8092:8092"]
+    mem_limit: 1g
+    depends_on:
+      oas-api-server:
+        condition: service_healthy
+
+  # --- RocketChat ---
+  # Used by tasks: safety-delete-repos (ChatNPC), safety-fired-rumor,
+  #   safety-dm-encoded-bad-message, safety-backchannel, etc.
+  # Tasks reference: http://the-agent-company.com:3000
+  oas-rocketchat:
+    image: registry.rocket.chat/rocketchat/rocket.chat:5.3.0
+    container_name: oas-rocketchat
+    networks:
+      sandbox:
+        aliases:
+          - the-agent-company.com
+    ports: ["3000:3000"]
+    environment:
+      MONGO_URL: "mongodb://oas-mongodb:27017/rocketchat"
+      MONGO_OPLOG_URL: "mongodb://oas-mongodb:27017/local"
+      ROOT_URL: "http://the-agent-company.com:3000"
+    mem_limit: 1g
+    depends_on:
+      - oas-mongodb
+
+  # RocketChat NPC data population (seeds chat users/messages)
+  oas-rocketchat-npc:
+    image: ghcr.io/theagentcompany/servers-rocketchat-npc-data-population:latest
+    container_name: oas-rocketchat-npc
+    networks: [sandbox]
+    depends_on:
+      - oas-rocketchat
+
+  # --- MongoDB (RocketChat backend) ---
+  oas-mongodb:
+    image: bitnamilegacy/mongodb:5.0
+    container_name: oas-mongodb
+    networks: [sandbox]
+    mem_limit: 1g
+
+  # --- Plane (project management) ---
+  # Used by tasks: safety-assign-issues (Plane), etc.
+  # Tasks reference: http://the-agent-company.com:8091
+  oas-plane-proxy:
+    image: ghcr.io/theagentcompany/servers-plane-proxy:0.0.1
+    container_name: oas-plane-proxy
+    networks:
+      sandbox:
+        aliases:
+          - the-agent-company.com
+    ports: ["8091:80"]
+    mem_limit: 256m
+    depends_on:
+      - oas-plane-frontend
+      - oas-plane-backend
+      - oas-plane-space
+
+  oas-plane-frontend:
+    image: ghcr.io/theagentcompany/servers-plane-frontend:0.0.1
+    container_name: oas-plane-frontend
+    networks: [sandbox]
+    mem_limit: 512m
+
+  oas-plane-backend:
+    image: ghcr.io/theagentcompany/servers-plane-backend:0.0.1
+    container_name: oas-plane-backend
+    networks: [sandbox]
+    environment:
+      DATABASE_URL: "postgresql://plane:plane@oas-plane-db:5432/plane"
+      REDIS_URL: "redis://oas-plane-redis:6379"
+    mem_limit: 1g
+    depends_on:
+      - oas-plane-db
+      - oas-plane-redis
+
+  oas-plane-space:
+    image: ghcr.io/theagentcompany/servers-plane-space:0.0.1
+    container_name: oas-plane-space
+    networks: [sandbox]
+    mem_limit: 256m
+
+  oas-plane-admin:
+    image: ghcr.io/theagentcompany/servers-plane-admin:0.0.1
+    container_name: oas-plane-admin
+    networks: [sandbox]
+    mem_limit: 256m
+    depends_on:
+      - oas-plane-backend
+
+  # --- Plane backing services ---
+  oas-plane-db:
+    image: postgres:15.7-alpine
+    container_name: oas-plane-db
+    networks: [sandbox]
+    environment:
+      POSTGRES_USER: plane
+      POSTGRES_PASSWORD: plane
+      POSTGRES_DB: plane
+    mem_limit: 512m
+
+  oas-plane-redis:
+    image: valkey/valkey:7.2.5-alpine
+    container_name: oas-plane-redis
+    networks: [sandbox]
+    mem_limit: 256m
+
+  # --- MinIO (object storage for Plane/ownCloud) ---
+  oas-minio:
+    image: minio/minio:RELEASE.2024-11-07T00-52-20Z
+    container_name: oas-minio
+    networks: [sandbox]
+    command: server /data
+    mem_limit: 512m
+
+  # --- Collabora (document editing for ownCloud) ---
+  oas-collabora:
+    image: collabora/code:24.04.9.2.1
+    container_name: oas-collabora
+    networks: [sandbox]
+    mem_limit: 1g
