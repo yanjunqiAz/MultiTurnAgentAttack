@@ -89,7 +89,9 @@ def parse_args():
         args.input_path = f'output/{args.benchmark}/verification/tool_chain_attacks_gpt-4.1_gpt-4.1/Prompts/Qwen/Qwen3-32B/gen_res.json'
 
     if args.output_dir is None:
-        args.output_dir = f'output/{args.benchmark}/verification/tool_chain_attacks_gpt-4.1_gpt-4.1/Prompts/Qwen/Qwen3-32B/Eval/adaptive_planning'
+        # Derive output dir from input_path: write Eval/ next to the prompt writer's gen_res.json
+        input_dir = os.path.dirname(args.input_path)
+        args.output_dir = f'{input_dir}/Eval/adaptive_planning'
 
     return args
 
@@ -202,10 +204,14 @@ def eval_file(args, outpath):
             asb_data = json.load(f)
         asb_data_lookup = {d['id']: d for d in asb_data}
 
-    # Process interaction history
+    # Process interaction history (skip items with empty history from step 3)
+    _processed = []
     for d in data:
+        if not d.get('interaction_history'):
+            continue
         n_turns_to_keep = len(d['final_tool_chain']['tool_chain'])
         counter_turns = 0
+        n_chats_to_keep = len(d['interaction_history'])
         for t in range(len(d['interaction_history'])):
             if d['interaction_history'][t]['role'] == 'user':
                 counter_turns += 1
@@ -213,8 +219,12 @@ def eval_file(args, outpath):
                     n_chats_to_keep = t
                     break
         d['interaction_history'] = d['interaction_history'][:n_chats_to_keep]
-        assert d['interaction_history'][-1]['role'] != 'user'
+        if not d['interaction_history'] or d['interaction_history'][-1]['role'] == 'user':
+            continue
         d['interaction_history'] = [convert_message_between_APIs(h, args.model_agent) for h in d['interaction_history']]
+        _processed.append(d)
+    print(f"Skipped {len(data) - len(_processed)} items with empty/invalid interaction history")
+    data = _processed
 
     # Filter valid data
     data = [d for d in data if d['final_tool_chain'] and d['final_tool_chain'] != "" and

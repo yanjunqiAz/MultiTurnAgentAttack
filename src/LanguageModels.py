@@ -1001,7 +1001,7 @@ class OpenAILM(LM):
                  return_raw_output: bool = False,
                  spotlighting: bool = False,
                  role: str = None,
-                 batch_size: Optional[int] = 1) -> Union[List[str], List[Dict]]:
+                 batch_size: Optional[int] = None) -> Union[List[str], List[Dict]]:
         """
         Generates responses for a list of prompts using either synchronous or batch API calls.
 
@@ -1042,7 +1042,7 @@ class OpenAILM(LM):
         # logging.info(f"\n\n[TOOL CONFIGS]: {tool_configs}")
 
         # === Decide between Batch or Synchronous API ===
-        if batch_size is not None:
+        if batch_size is not None and len(formatted_prompts) >= batch_size:
             # --- Use Batch API for large jobs ---
             print(f"Using Batch API.")
             try:
@@ -1112,7 +1112,7 @@ class OpenAILM(LM):
                             )
                         message = completion.choices[0].message
                         if return_raw_output:
-                            outputs.append(message)
+                            outputs.append(message.to_dict())
                         else:
                             content = json.dumps(message.tool_calls) if message.tool_calls else message.content or ""
                             outputs.append(content)
