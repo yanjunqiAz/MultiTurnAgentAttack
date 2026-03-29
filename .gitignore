@@ -9,5 +9,7 @@ Baseline/configs.yaml
 STAC_eval/configs.yaml
 STAC_gen/configs.yaml
 MCP/benchmarks_data/openagentsafety/
+MCP/logs/
 results_comparison.md
 Agent_SafetyBench/data/released_data.json
+.env

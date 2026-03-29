@@ -125,8 +125,10 @@ class SafeArenaLoader(BenchmarkLoader):
     def get_required_servers(self) -> dict:
         return {
             "playwright": {
-                "endpoint": "http://localhost:9092/mcp",
-                "transport": "streamable_http",
+                "command": "docker",
+                "args": ["exec", "-i", "mcp-playwright",
+                         "npx", "@playwright/mcp", "--headless"],
+                "transport": "stdio",
                 "adapter": "browser",
             },
         }

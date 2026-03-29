@@ -1,8 +1,9 @@
 """MCPEnvironment — BaseEnvironment backed by real MCP servers.
 
-Connects to one or more MCP-compatible servers (over SSE, Streamable HTTP,
-or stdio), discovers tools dynamically via ``tools/list``, routes tool calls
-to the correct server, and manages state through pluggable adapters.
+Connects to one or more MCP-compatible servers (over stdio, SSE, or
+Streamable HTTP), discovers tools dynamically via ``tools/list``, routes
+tool calls to the correct server, and manages state through pluggable
+adapters.  The default transport is **stdio** via ``docker exec -i``.
 
 All async MCP SDK calls are wrapped behind the synchronous
 ``BaseEnvironment`` interface using a background thread running an
@@ -31,6 +32,7 @@ import concurrent.futures
 import json
 import logging
 import threading
+import time
 from typing import Any
 
 from mcp import ClientSession
@@ -85,15 +87,29 @@ class MCPEnvironment(BaseEnvironment):
         self.tool_routing: dict[str, str] = {}  # tool_name -> server_name
         self._context_managers: list[tuple] = []  # for cleanup
 
-        # Connect to each MCP server
+        # Connect to each MCP server (with retry)
         for name, cfg in server_configs.items():
-            try:
-                session = self._run(self._connect(cfg), timeout=30)
-                self.sessions[name] = session
-            except Exception as exc:
-                logger.error("Failed to connect to MCP server %r: %s", name, exc)
-                self.close()
-                raise
+            max_retries = 3
+            retry_delay = 2
+            for attempt in range(1, max_retries + 1):
+                try:
+                    session = self._run(self._connect(cfg), timeout=30)
+                    self.sessions[name] = session
+                    # Verify the connection works by listing tools
+                    self._run(session.list_tools(), timeout=15)
+                    logger.info("Connected to MCP server %r (attempt %d)", name, attempt)
+                    break
+                except Exception as exc:
+                    logger.warning(
+                        "MCP server %r connection attempt %d/%d failed: %s",
+                        name, attempt, max_retries, exc,
+                    )
+                    if attempt < max_retries:
+                        time.sleep(retry_delay * attempt)
+                    else:
+                        logger.error("Failed to connect to MCP server %r after %d attempts", name, max_retries)
+                        self.close()
+                        raise
 
             adapter_key = cfg.get("adapter")
             adapter_cls = ADAPTER_REGISTRY.get(adapter_key) if adapter_key else None
@@ -131,14 +147,15 @@ class MCPEnvironment(BaseEnvironment):
 
         Supports three transports:
 
-        * **streamable_http** (default) — connects to a running server.
-        * **sse** — connects via Server-Sent Events (e.g. supergateway).
-        * **stdio** — spawns a local subprocess.
+        * **stdio** (default) — spawns a subprocess (typically
+          ``docker exec -i <container> <mcp-server>``).
+        * **sse** — connects via Server-Sent Events.
+        * **streamable_http** — connects to a running HTTP server.
 
         Context managers are kept alive via manual ``__aenter__`` and
         cleaned up in ``close()``.
         """
-        transport_type = cfg.get("transport", "streamable_http")
+        transport_type = cfg.get("transport", "stdio")
 
         if transport_type == "stdio":
             from mcp.client.stdio import StdioServerParameters, stdio_client

@@ -213,16 +213,20 @@ class TestLoadServerRegistry:
         cfg.write_text(textwrap.dedent("""\
             servers:
               postgres:
-                endpoint: "http://localhost:9091/mcp"
+                command: "docker"
+                args: ["exec", "-i", "mcp-postgres", "mcp-server-postgres"]
+                transport: stdio
                 adapter: database
               filesystem:
-                endpoint: "http://localhost:9090/mcp"
+                command: "docker"
+                args: ["exec", "-i", "mcp-filesystem", "mcp-server-filesystem", "/workspace"]
+                transport: stdio
                 adapter: filesystem
         """))
         registry = load_server_registry(cfg)
         assert "postgres" in registry
         assert "filesystem" in registry
-        assert registry["postgres"]["endpoint"] == "http://localhost:9091/mcp"
+        assert registry["postgres"]["transport"] == "stdio"
 
     def test_missing_file(self, tmp_path):
         assert load_server_registry(tmp_path / "missing.yml") == {}

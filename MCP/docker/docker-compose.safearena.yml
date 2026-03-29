@@ -1,12 +1,12 @@
 # MCP/docker/docker-compose.safearena.yml
 #
 # SafeArena web services. Run alongside the base docker-compose.yml:
-#   docker compose -f docker/docker-compose.yml \
-#                  -f docker/docker-compose.safearena.yml up -d
+#   cd MCP/docker
+#   docker compose -f docker-compose.yml -f docker-compose.safearena.yml up -d
 
 networks:
   sandbox:
-    external: true    # defined in base docker-compose.yml
+    external: false   # defined in base docker-compose.yml
 
 services:
   sa-homepage:

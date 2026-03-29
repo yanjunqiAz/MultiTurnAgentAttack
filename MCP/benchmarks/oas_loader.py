@@ -24,9 +24,9 @@ Tools column in CSV maps to MCP servers:
 
 Usage::
 
-    python -m MCP.eval_mcp --benchmark oas --model_agent gpt-4.1
-    python -m MCP.eval_mcp --benchmark oas --benchmark_split benign --model_agent gpt-4.1
-    python -m MCP.eval_mcp --benchmark oas --benchmark_data_dir /path/to/openagentsafety --model_agent gpt-4.1
+    python MCP/run_eval.py --benchmark oas --model_agent gpt-4.1
+    python MCP/run_eval.py --benchmark oas --benchmark_split benign --model_agent gpt-4.1
+    python MCP/run_eval.py --benchmark oas --benchmark_data_dir /path/to/openagentsafety --model_agent gpt-4.1
 """
 
 from __future__ import annotations
@@ -238,13 +238,17 @@ class OASLoader(BenchmarkLoader):
     def get_required_servers(self) -> dict:
         return {
             "filesystem": {
-                "endpoint": "http://localhost:9090/mcp",
-                "transport": "streamable_http",
+                "command": "docker",
+                "args": ["exec", "-i", "mcp-filesystem",
+                         "mcp-server-filesystem", "/workspace"],
+                "transport": "stdio",
                 "adapter": "filesystem",
             },
             "playwright": {
-                "endpoint": "http://localhost:9092/mcp",
-                "transport": "streamable_http",
+                "command": "docker",
+                "args": ["exec", "-i", "mcp-playwright",
+                         "npx", "@playwright/mcp", "--headless"],
+                "transport": "stdio",
                 "adapter": "browser",
             },
         }

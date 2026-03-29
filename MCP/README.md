@@ -1,6 +1,6 @@
 # MCP Evaluation Module
 
-Evaluate STAC multi-turn adversarial attacks against real MCP (Model Context Protocol) tool backends. This is the MCP counterpart of `STAC_eval/eval_STAC_benchmark.py` — instead of mock environments, attacks run against live MCP servers (filesystems, browsers, databases).
+Evaluate STAC multi-turn adversarial attacks against real MCP (Model Context Protocol) tool backends. This is the MCP counterpart of `STAC_eval/eval_STAC_benchmark.py` — instead of mock environments, attacks run against live MCP servers (filesystems, browsers, databases) inside Docker containers.
 
 ## Module Structure
 
@@ -21,14 +21,19 @@ MCP/
 ├── benchmarks_data/             # Datasets and scenarios
 │   ├── openagentsafety/         #   OAS dataset (CSV + 356 task folders)
 │   └── quick_scenarios/         #   Hand-crafted YAML attack scenarios
+├── gen/                         # Attack generation pipeline (Steps 1-3)
+│   ├── run_pipeline.py          #   Orchestrator: runs steps 1→2→3
+│   ├── step_1_gen_tool_chains.py#   Generate attack chains from benchmark tasks
+│   ├── step_2_verify_tool_chain.py# Verify chains against live MCP servers
+│   └── step_3_gen_prompts.py    #   Reverse-engineer natural user prompts
 ├── tests/                       # Test suite (187 tests, no API keys needed)
 ├── docker/                      # Docker Compose files for MCP servers
 ├── prompts/                     # LLM judge system prompts
+├── run_pipeline.py              # Unified pipeline: gen (steps 1-3) + eval
 ├── run_eval.py                  # Entry point (vllm stub, sys.path, delegates to eval/)
 ├── run_post_eval.py             # Entry point for standalone post-evaluation
 ├── configs.yaml                 # Named configs (_global defaults: all models → gpt-4.1)
-├── mcp_servers.yml              # Server registry: name → endpoint + adapter
-└── mcp_servers_local.yml        # Local dev config (supergateway on macOS)
+└── mcp_servers.yml              # Server registry: name → Docker stdio transport + adapter
 ```
 
 **Evaluation pipeline per scenario:**
@@ -37,19 +42,19 @@ MCP/
 2. Seed initial state (DB rows, files, navigate browser)
 3. Capture pre-attack state snapshot
 4. Run `AdaptivePlanningSystem` loop (Planner -> Agent -> Judge, scores -3 to 3)
-5. Run 3-way post-eval LLM judge (COMPLETE / REJECT / FAILED)
-6. Capture post-attack state snapshot
-7. Run deterministic `check_criteria()` against success conditions
-8. Run `StateVerifier` (LLM judge comparing pre/post state)
-9. Save results (crash-safe, after each scenario)
+5. Capture post-attack state snapshot
+6. Run deterministic `check_criteria()` against success conditions
+7. Run `StateVerifier` (LLM judge comparing pre/post state)
+8. Collect results (histories, scores)
+9. Run 3-way post-eval LLM judge (COMPLETE / REJECT / FAILED)
+10. Save results (crash-safe, after each scenario)
 
 ## Installation
 
 ### Prerequisites
 
 - Python 3.12 with the base STAC environment (see root `environment.yml`)
-- Docker and Docker Compose (for running MCP servers)
-- Node.js / npm (for supergateway and MCP server packages)
+- Docker and Docker Compose (for running MCP servers in isolated containers)
 - OpenAI API key (or AWS credentials for Bedrock models)
 
 ### 1. Install MCP SDK
@@ -63,31 +68,25 @@ pip install "mcp>=1.26"
 
 ### 2. Start MCP servers
 
-The base MCP servers use official Docker images wrapped with [supergateway](https://github.com/supercorp-ai/supergateway) to expose streamable-HTTP endpoints:
+MCP servers run inside Docker containers. The eval harness connects to them
+via `docker exec -i` over stdio transport — no HTTP endpoints or supergateway needed.
 
 ```bash
 cd MCP/docker && docker compose up -d
 ```
 
 This starts:
-- **Filesystem** (`mcp/filesystem`) on port 9090 — file read/write/search tools
-- **Playwright** (`@playwright/mcp`) on port 9092 — browser automation tools
+- **Filesystem** (`@modelcontextprotocol/server-filesystem`) — file read/write/search tools
+- **Playwright** (`@playwright/mcp`) — browser automation tools
 
-Verify servers are reachable:
+Both containers pre-install their MCP packages on startup, then idle. The eval
+harness invokes the MCP server binary inside the container on each connection.
 
-```bash
-curl -s -o /dev/null -w "%{http_code}" http://localhost:9090/mcp   # expect 400 (normal)
-curl -s -o /dev/null -w "%{http_code}" http://localhost:9092/mcp   # expect 400 (normal)
-```
-
-**Local development (no Docker):** Use supergateway directly:
+Verify containers are running:
 
 ```bash
-npx -y supergateway --port 9090 --outputTransport streamableHttp --stateful \
-  --stdio "npx -y @modelcontextprotocol/server-filesystem /private/tmp"
+docker compose ps   # both should show "running"
 ```
-
-Then use `--mcp_config MCP/mcp_servers_local.yml` when running eval.
 
 ### 3. Set API key
 
@@ -320,6 +319,46 @@ Add the import to `MCP/benchmarks/__init__.py`, then run:
 ```bash
 python MCP/run_eval.py --benchmark mybench --model_agent gpt-4.1
 ```
+
+## Attack Generation Pipeline
+
+The `gen/` module generates STAC attack chains for MCP environments (parallel to the main `STAC_gen/` pipeline but targeting MCP tool backends).
+
+### Unified pipeline (gen + eval)
+
+The recommended entry point is `run_pipeline.py`, which runs generation (steps 1-3) then converts the output to scenarios and evaluates them:
+
+```bash
+# Full pipeline: gen steps 1-3 → convert → eval
+python MCP/run_pipeline.py --model gpt-4.1 --dataset oas
+
+# Smoke test
+python MCP/run_pipeline.py --model gpt-4.1 --dataset oas --max_tasks 2 --n_cases 1
+
+# Gen only (skip eval)
+python MCP/run_pipeline.py --model gpt-4.1 --dataset oas --gen_only
+
+# Eval only (use existing gen output)
+python MCP/run_pipeline.py --model gpt-4.1 --dataset oas --eval_only
+
+# Eval with defense
+python MCP/run_pipeline.py --model gpt-4.1 --eval_only --defense reasoning
+
+# Config-driven (recommended)
+python MCP/run_pipeline.py --config pipeline_gpt41
+```
+
+### Gen steps individually
+
+```bash
+python -m MCP.gen.run_pipeline --model gpt-4.1 --dataset oas              # steps 1-3
+python -m MCP.gen.step_1_gen_tool_chains --model gpt-4.1 --dataset oas    # step 1
+python -m MCP.gen.step_2_verify_tool_chain --model gpt-4.1 --dataset oas  # step 2
+python -m MCP.gen.step_3_gen_prompts --model gpt-4.1 --dataset oas        # step 3
+python -m MCP.gen.run_pipeline --model gpt-4.1 --dataset oas --start_step 2  # resume from 2
+```
+
+Output is saved to `data/MCP_gen/{model}/{dataset}/{split}/step{1,2,3}_*.json`.
 
 ## Tests
 

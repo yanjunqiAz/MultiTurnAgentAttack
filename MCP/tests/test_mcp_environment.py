@@ -85,7 +85,7 @@ def build_env(
         for name, tools in server_tools.items()
     }
     server_configs = {
-        name: {"endpoint": f"http://localhost/{name}", "transport": "streamable_http"}
+        name: {"command": "echo", "args": ["test"], "transport": "stdio"}
         for name in server_tools
     }
 

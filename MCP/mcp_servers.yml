@@ -1,35 +1,30 @@
 # MCP Server Registry
 #
-# Maps server names to MCP endpoints and adapter types.
+# Maps server names to MCP transports and adapter types.
 # eval_mcp.py reads this via --mcp_config (defaults to this file).
 #
-# Transport options:
-#   streamable_http — connects to a remote/Docker MCP server via HTTP (default)
-#   stdio           — runs a local subprocess (no Docker needed, useful for dev)
-#
-# Start the Docker servers first:
+# Start containers first:
 #   cd MCP/docker && docker compose up -d
+#
+# Servers are accessed via `docker exec -i` over stdio transport.
+# No supergateway or HTTP endpoints needed.
 
 servers:
   filesystem:
-    endpoint: "http://localhost:9090/mcp"
-    transport: streamable_http
+    command: "docker"
+    args: ["exec", "-i", "mcp-filesystem", "mcp-server-filesystem", "/workspace"]
+    transport: stdio
     adapter: filesystem
 
   playwright:
-    endpoint: "http://localhost:9092/mcp"
-    transport: streamable_http
+    command: "docker"
+    args: ["exec", "-i", "mcp-playwright", "npx", "@playwright/mcp", "--headless"]
+    transport: stdio
     adapter: browser
 
-  # Uncomment if you add a postgres server (no official mcp/postgres image yet):
+  # Uncomment if you add a postgres server:
   # postgres:
-  #   endpoint: "http://localhost:9091/mcp"
-  #   transport: streamable_http
-  #   adapter: database
-
-  # Stdio transport example (local process, no Docker needed):
-  # local_fs:
-  #   command: "npx"
-  #   args: ["-y", "@modelcontextprotocol/server-filesystem", "/tmp/sandbox"]
+  #   command: "docker"
+  #   args: ["exec", "-i", "mcp-postgres", "mcp-server-postgres"]
   #   transport: stdio
-  #   adapter: filesystem
+  #   adapter: database

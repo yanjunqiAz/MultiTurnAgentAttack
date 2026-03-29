@@ -314,7 +314,7 @@ class TestServerConfig:
         servers = loader.get_required_servers()
         assert "playwright" in servers
         assert servers["playwright"]["adapter"] == "browser"
-        assert "9092" in servers["playwright"]["endpoint"]
+        assert servers["playwright"]["transport"] == "stdio"
 
     def test_get_docker_compose(self):
         loader = SafeArenaLoader()

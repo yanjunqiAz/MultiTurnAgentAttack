@@ -26,7 +26,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from openai import OpenAI
 
@@ -367,12 +367,12 @@ def main() -> None:
         attack_goal = r.get("attack_goal", "")
         task_description = attack_goal
 
-        # Enrich with OAS task folder content if available
+        # Enrich with benchmark task folder content if available
         task_dir = resolve_task_dir(scenario_id, args.tasks_dir)
         if task_dir:
-            oas_desc = gather_task_description(task_dir)
-            if oas_desc:
-                task_description = f"{oas_desc}\n\n---\nAttack goal: {attack_goal}"
+            rich_desc = gather_task_description(task_dir)
+            if rich_desc:
+                task_description = f"{rich_desc}\n\n---\nAttack goal: {attack_goal}"
 
         # Format trajectory from interaction history
         trajectory = format_trajectory(r.get("interaction_history", []))

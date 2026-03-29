@@ -111,7 +111,7 @@ python MCP/run_post_eval.py --model_agent gpt-4.1   # standalone re-classificati
 python -m pytest MCP/tests/ -v                       # MCP-specific tests
 ```
 
-Key files: `eval/eval_mcp.py` (main loop), `eval/post_eval.py` (3-way judge), `core/mcp_environment.py` (MCP server integration), `configs.yaml` (named configs), `benchmarks/oas_loader.py` (356 OAS tasks). See `MCP/CLAUDE.md` for detailed module docs.
+Key files: `eval/eval_mcp.py` (main loop), `eval/post_eval.py` (3-way judge), `core/mcp_environment.py` (MCP server integration), `configs.yaml` (named configs), `benchmarks/oas_loader.py` (356 OAS tasks). Also includes `gen/` pipeline for generating MCP-specific attack chains (steps 1-3). Unified pipeline: `python MCP/run_pipeline.py --model gpt-4.1` (gen + eval). See `MCP/CLAUDE.md` for detailed module docs.
 
 ### External benchmark integrations
 
