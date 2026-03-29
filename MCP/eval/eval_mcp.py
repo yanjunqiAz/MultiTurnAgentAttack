@@ -170,6 +170,12 @@ def parse_args() -> argparse.Namespace:
                 elif getattr(args, key) == p.get_default(key):
                     setattr(args, key, val)
 
+        # Ensure Path-typed args are Path objects after config merge
+        for path_key in ("mcp_config", "scenarios", "benchmark_data_dir", "tasks_dir"):
+            v = getattr(args, path_key, None)
+            if v is not None and not isinstance(v, Path):
+                setattr(args, path_key, Path(v))
+
     # Validate that we have an input source
     if not args.scenarios and not args.benchmark:
         raise SystemExit(
