@@ -216,7 +216,7 @@ def convert_message_between_APIs(message, target_model):
                                                             "arguments": json.dumps(m['toolUse']['input'])
                                                         }}]
                         else:
-                            new_message["content"] = f"""<tool_call>{json.dumps({"name": m['toolUse'][0]['name'], "tool_call_id": m['toolUse'][0]['toolUseId'], "arguments": m['toolUse'][0]['input']})}</tool_call>"""
+                            new_message["content"] = f"""<tool_call>{json.dumps({"name": m['toolUse']['name'], "tool_call_id": m['toolUse']['toolUseId'], "arguments": m['toolUse']['input']})}</tool_call>"""
     elif message['role'] == "tool":
         if isinstance(message['content'], str) and "<tool_call_result>" in message['content']: # huggingface
             tool_call_result = str2json(message['content'])

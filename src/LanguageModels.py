@@ -251,7 +251,7 @@ class BedrockLM(LM):
                             new_formatted_prompt.append(new_p)
                     elif p['role'] == 'tool':
                         try:
-                            tool_result_content = json.loads[p['content']]
+                            tool_result_content = json.loads(p['content'])
                             content_type = 'json'
                         except:
                             tool_result_content = p['content']
@@ -680,12 +680,12 @@ class VllmLM(LM):
         n_tries = 0
         outputs = ["" for _ in formatted_prompts]
         while (False in valid) and (n_tries < 10):
-            new_outputs = self.model.generate(prompts=[f for f_i, f in enumerate(formatted_prompts) if not valid[f_i]],
+            invalid_indices = [i for i, v in enumerate(valid) if not v]
+            new_outputs = self.model.generate(prompts=[formatted_prompts[i] for i in invalid_indices],
                                                 sampling_params=sampling_params,
                                                 use_tqdm=True)
-            for output_i, output in enumerate(new_outputs):
-                if not valid[output_i]:
-                    outputs[output_i] = new_outputs if return_raw_output else new_outputs[output_i].outputs[0].text
+            for new_i, orig_i in enumerate(invalid_indices):
+                outputs[orig_i] = new_outputs if return_raw_output else new_outputs[new_i].outputs[0].text
             if 'qwen' in self.model_id.lower():
                 new_outputs = []
                 for output in outputs:

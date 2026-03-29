@@ -262,7 +262,7 @@ python -m STAC_eval.eval_STAC_benchmark \
 
 This is the same evaluator used for the STAC benchmark (`data/STAC_benchmark_data.json`),
 pointed at the ToolShield-converted data instead. Results go to
-`data/Eval/<model_planner>/<model_agent>/<defense>/gen_res.json`.
+`data/Eval_toolshield/<model_agent>/<defense>/eval_results.json`.
 
 ### Defense Options
 
@@ -276,7 +276,7 @@ pointed at the ToolShield-converted data instead. Results go to
 
 ### Output
 
-Results are saved to `data/Eval/<model_agent>/<defense>/`:
+Results are saved to `data/Eval_toolshield/<model_agent>/<defense>/`:
 - `eval_results.json` -- full results with judge scores per item
 - `eval_metrics.json` -- aggregate metrics (ASR, avg scores)
 - `eval_io.log` -- detailed LLM interaction logs

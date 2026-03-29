@@ -204,6 +204,7 @@ def eval_file(args, outpath):
     for d in data:
         n_turns_to_keep = len(d['attack_plan']['verified_tool_chain'])
         counter_turns = 0
+        n_chats_to_keep = len(d['interaction_history'])
         for t in range(len(d['interaction_history'])):
             if d['interaction_history'][t]['role'] == 'user':
                 counter_turns += 1

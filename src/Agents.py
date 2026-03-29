@@ -77,7 +77,7 @@ class Agent():
         else:
             if 'claude' in model_id.lower() or 'llama' in model_id.lower() or 'deepseek' in model_id.lower():
                 self.model = BedrockLM(model_id, sys_prompt_paths=[sys_prompt_path], region=region)
-            elif 'gpt' in model_id.lower():
+            elif 'gpt' in model_id.lower() or 'o3' in model_id.lower() or 'o4' in model_id.lower():
                 self.model = OpenAILM(model_id, sys_prompt_paths=[sys_prompt_path])
             else:
                 ensure_ray_initialized()
@@ -176,7 +176,7 @@ class Agent():
         elif 'gpt' in self.model_id.lower() or 'o3' in self.model_id.lower() or 'o4' in self.model_id.lower():
             self.messages = [[{'role': 'system', 'content': self.sys_prompt}] for _ in self.tool_configs]
         else:
-            self.messages = [[]] * self.n_agents
+            self.messages = [[] for _ in range(self.n_agents)]
         
     def get_env_info(self):
         """

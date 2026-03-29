@@ -11,5 +11,5 @@ STAC_gen/configs.yaml
 MCP/benchmarks_data/openagentsafety/
 MCP/logs/
 results_comparison.md
-Agent_SafetyBench/data/released_data.json
+Agent_SafetyBench/data/
 .env

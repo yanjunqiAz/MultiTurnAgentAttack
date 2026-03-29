@@ -96,8 +96,6 @@ def evaluate_shade_arena(args, data, verifier, outdata, outpath):
             print(e)
             import traceback; traceback.print_exc();
 
-        break
-
 def evaluate_agent_safetybench(args, data, all_envs, verifier, outdata, outpath):
     for batch in tqdm(batchify(list(zip(data, all_envs)), args.batch_size), total=(len(data) + args.batch_size - 1) // args.batch_size):
         ds, envs = zip(*batch)
@@ -131,8 +129,6 @@ def evaluate_agent_safetybench(args, data, all_envs, verifier, outdata, outpath)
         except Exception as e:
             print(e)
             import traceback; traceback.print_exc();
-
-        break
 
 def eval_file_shade_arena(args, outpath):
     basedir = os.path.dirname(outpath)

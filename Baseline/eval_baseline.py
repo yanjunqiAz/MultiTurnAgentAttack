@@ -25,7 +25,7 @@ Usage:
 
 Arguments:
     --input_path:       STAC benchmark data (default: data/STAC_benchmark_data.json)
-    --output_dir:       Output directory (default: data/Eval)
+    --output_dir:       Output directory (default: data/Eval_toolshield)
     --model_agent:      Target agent LLM (default: gpt-4.1)
     --model_judge:      Judge LLM (default: gpt-4.1)
     --defense:          Defense mechanism (default: no_defense)
@@ -244,7 +244,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate agent against STAC attacks (no planner)")
     parser.add_argument("--input_path", type=str, default="data/STAC_benchmark_data.json",
                        help="Path to STAC benchmark data")
-    parser.add_argument("--output_dir", type=str, default="data/Eval",
+    parser.add_argument("--output_dir", type=str, default="data/Eval_toolshield",
                        help="Directory for evaluation results")
     parser.add_argument("--model_judge", type=str, default='gpt-4.1')
     parser.add_argument("--model_agent", type=str, default='gpt-4.1')
