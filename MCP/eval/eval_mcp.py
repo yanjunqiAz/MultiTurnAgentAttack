@@ -125,8 +125,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--defense", type=str, default="no_defense",
         choices=["no_defense", "failure_modes", "summarization",
-                 "reasoning", "spotlighting"],
+                 "reasoning", "spotlighting", "toolshield_experience"],
     )
+    p.add_argument("--experience-file", type=str, default=None,
+                   help="Path to ToolShield experience JSON (required when --defense toolshield_experience)")
     p.add_argument("--no_state_verify", action="store_true",
                    help="Skip StateVerifier (Judge-only, faster)")
 
@@ -677,6 +679,11 @@ def main() -> None:
     }
     if args.defense in defense_prompts:
         agent.extend_sys_prompt(defense_prompts[args.defense])
+    elif args.defense == "toolshield_experience":
+        if not args.experience_file:
+            raise ValueError("--experience-file is required when --defense toolshield_experience")
+        exp_prompt = AgentSysemPrompts.load_toolshield_experience(args.experience_file)
+        agent.extend_sys_prompt(exp_prompt)
 
     planner = Planner(
         model_id=args.model_planner, temperature=0.15,

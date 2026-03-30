@@ -63,7 +63,7 @@ claude_sonnet:
 gpt41_all_defenses:
   description: "GPT-4.1 across all defense strategies"
   model_agent: gpt-4.1
-  defense: [no_defense, failure_modes, summarization, reasoning, spotlighting]
+  defense: [no_defense, failure_modes, summarization, reasoning, spotlighting, toolshield_experience]
 
 gpt41_reasoning:
   description: "GPT-4.1 with reasoning defense"
@@ -86,7 +86,7 @@ model_sweep:
 full_sweep:
   description: "All models x all defenses"
   model_agent: [gpt-4.1, gpt-4.1-mini, gpt-4.1-nano]
-  defense: [no_defense, failure_modes, summarization, reasoning, spotlighting]
+  defense: [no_defense, failure_modes, summarization, reasoning, spotlighting, toolshield_experience]
 
 # =====================
 # Alternative dataset configs
@@ -106,4 +106,4 @@ toolshield_shade_all_defenses:
   description: "ToolShield SHADE attacks across all defenses"
   input_path: data/toolshield_shade_stac.json
   model_agent: gpt-4.1
-  defense: [no_defense, failure_modes, summarization, reasoning, spotlighting]
+  defense: [no_defense, failure_modes, summarization, reasoning, spotlighting, toolshield_experience]

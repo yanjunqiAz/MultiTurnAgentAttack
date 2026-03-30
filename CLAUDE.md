@@ -39,9 +39,13 @@ python -m STAC_gen.step_4_eval_adaptive_planning --benchmark SHADE_Arena --model
 
 ### Baseline (ToolShield) pipeline
 ```bash
-python -m Baseline.run_baseline_pipeline --config shade_gpt41          # uses configs.yaml
+python -m Baseline.run_baseline_pipeline --config shade_gpt41          # uses toolshield_attack_configs.yaml
 python -m Baseline.run_baseline_pipeline --dataset shade               # direct args
 python -m Baseline.eval_baseline --input_path data/toolshield_shade_stac.json --model_agent gpt-4.1
+python -m Baseline.distill_defense --input data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json  # auto-names output
+python -m Baseline.pipeline_distill_and_eval_defense --config ts_asb_adaptive_distill_eval_stac  # uses defense_pipeline_configs.yaml
+python -m Baseline.pipeline_distill_and_eval_defense --config distill_stac_shade  # distill STAC/SHADE source only
+python -m Baseline.pipeline_distill_and_eval_defense --trajectory data/Eval_restructured/stac/shade_arena/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json --eval-input data/STAC_benchmark_data.json  # direct args
 ```
 
 ### Tests
@@ -98,7 +102,11 @@ Steps must run sequentially; each consumes the previous step's output:
 
 ### Baseline (`Baseline/`)
 
-ToolShield-based attack generation as a comparison baseline. `run_baseline_pipeline.py` orchestrates: generate → convert → evaluate. Config-driven via `Baseline/configs.yaml`. `toolshield_patch.py` monkey-patches ToolShield to use LiteLLM.
+ToolShield-based attack generation as a comparison baseline. Two config-driven pipelines:
+  - **`run_baseline_pipeline.py`** — generate → convert → evaluate attacks. Config: `Baseline/toolshield_attack_configs.yaml`.
+  - **`pipeline_distill_and_eval_defense.py`** — distill defense from eval trajectories → evaluate with defense. Config: `Baseline/defense_pipeline_configs.yaml`. Covers 7 distinct trajectory data sources (STAC- and ToolShield-generated, SHADE and ASB, adaptive and no-planner) under `data/Eval_restructured/`.
+
+  Attack generation lives in `Baseline/attack_gen/` (SHADE + ASB generators, tool extractor). `toolshield_patch.py` monkey-patches ToolShield to use LiteLLM. `distill_defense.py` distills evaluation trajectories (`gen_res.json`) into ToolShield defense experience files using ToolShield's two-phase experience learning pipeline as a library. Supports filtering by `--envs`, `--min-progress`/`--max-progress`, `--dataset`, and `--min-id`/`--max-id`.
 
 ### MCP evaluation (`MCP/`)
 
@@ -124,14 +132,14 @@ System prompts for each STAC component: `generator.md`, `verifier.md`, `planner.
 
 ### Defense mechanisms
 
-Five options passed via `--defense`: `no_defense`, `failure_modes`, `summarization`, `reasoning`, `spotlighting`. Applied in Agent/evaluation code.
+Six options passed via `--defense`: `no_defense`, `failure_modes`, `summarization`, `reasoning`, `spotlighting`, `toolshield_experience`. The last requires `--experience-file` pointing to a ToolShield-distilled defense JSON. Applied in Agent/evaluation code.
 
 ## Key Patterns
 
 - Tool config formatting differs per model type. Check `model_id` string to determine format (Bedrock dict vs OpenAI list vs vLLM XML-wrapped string).
 - Environment `step()` returns model-specific message formats — Bedrock uses `toolResult` nested in `content` list, OpenAI uses flat `tool` role messages.
 - Ray is used for vLLM models; `ensure_ray_initialized()` from `src/utils.py` must be called before creating `VllmLM` actors.
-- Output paths: `data/Eval/{model_planner}/{model_agent}/{defense}/gen_res.json` (STAC_eval), `data/` (generation step outputs), `output/` (baseline ToolShield attack artifacts).
+- Output paths: `data/Eval/{model_planner}/{model_agent}/{defense}/gen_res.json` (STAC_eval), `data/` (generation step outputs), `output/` (baseline ToolShield attack artifacts). Restructured trajectories live in `data/Eval_restructured/{stac,toolshield}/{shade_arena,agent_safetybench}/{adaptive,no_planner}/...`.
 - Batch size tip: start with `--batch_size 2` to verify a script works, then scale up. OpenAI models support 512; Bedrock models ~10; vLLM depends on GPU count.
-- Baseline requires ToolShield (`pip install git+https://github.com/CHATS-lab/ToolShield.git`) and LiteLLM for the `generate` step only. The `evaluate` step needs only STAC dependencies.
+- Baseline requires ToolShield (`pip install git+https://github.com/CHATS-lab/ToolShield.git`) and LiteLLM for the `generate` and `distill_defense` steps. The `evaluate` step needs only STAC dependencies.
 - `toolshield_patch.py` monkey-patches ToolShield at runtime to use LiteLLM instead of its hardcoded OpenRouter client.

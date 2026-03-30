@@ -13,3 +13,5 @@ MCP/logs/
 results_comparison.md
 Agent_SafetyBench/data/
 .env
+Baseline/toolshield_attack_configs.yaml
+Baseline/defense_pipeline_configs.yaml

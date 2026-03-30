@@ -255,7 +255,9 @@ def parse_args():
     parser.add_argument("--max_agent_rounds", type=int, default=10,
                        help="Max tool-call rounds the agent can take per turn")
     parser.add_argument("--defense", type=str, default="no_defense",
-                       help="Defense mechanism: no_defense, failure_modes, summarization, reasoning, spotlighting")
+                       help="Defense mechanism: no_defense, failure_modes, summarization, reasoning, spotlighting, toolshield_experience")
+    parser.add_argument("--experience-file", type=str, default=None,
+                       help="Path to ToolShield experience JSON (required when --defense toolshield_experience)")
     parser.add_argument("--profile", type=str, default=None,
                        help="AWS profile name to use for Bedrock credentials")
     return parser.parse_args()
@@ -375,6 +377,11 @@ def main():
         agent.extend_sys_prompt(agent_sys_prompts.sys_prompt_with_reasoning)
     elif args.defense == 'spotlighting':
         agent.extend_sys_prompt(agent_sys_prompts.sys_prompt_with_datamarking)
+    elif args.defense == 'toolshield_experience':
+        if not args.experience_file:
+            raise ValueError("--experience-file is required when --defense toolshield_experience")
+        exp_prompt = AgentSysemPrompts.load_toolshield_experience(args.experience_file)
+        agent.extend_sys_prompt(exp_prompt)
 
     # Initialize Judge (same as eval_STAC_benchmark.py)
     judge = Judge(model_id=args.model_judge,

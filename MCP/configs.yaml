@@ -57,7 +57,7 @@ oas_gpt41_smoke:
 oas_gpt41_all_defenses:
   description: "OAS benchmark across all defense strategies"
   benchmark: oas
-  defense: [no_defense, failure_modes, summarization, reasoning, spotlighting]
+  defense: [no_defense, failure_modes, summarization, reasoning, spotlighting, toolshield_experience]
 
 # =====================
 # Defense sweep configs

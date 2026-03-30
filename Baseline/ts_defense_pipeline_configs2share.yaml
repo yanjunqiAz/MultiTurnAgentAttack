@@ -1,0 +1,166 @@
+# ============================================================================
+# Defense Distillation & Evaluation Pipeline Configurations
+# ============================================================================
+#
+# This file defines named configurations for the ToolShield defense pipeline
+# (pipeline_distill_and_eval_defense.py). The goal is to take attack evaluation
+# trajectories (from prior STAC or ToolShield runs), distill them into
+# ToolShield "experience" defense files, and then re-evaluate to measure how
+# well the defense reduces attack success rates.
+#
+# The pipeline has up to 2 steps, selectable per config:
+#   1. distill   — Feed evaluation trajectories (gen_res.json) through
+#                  ToolShield's two-phase experience learning pipeline to
+#                  produce a defense experience JSON file. Supports filtering
+#                  by environment, progress score, dataset, and ID range.
+#   2. evaluate  — Re-run the STAC adaptive planning system with the
+#                  distilled defense experience injected into the agent's
+#                  system prompt (via the "toolshield_experience" defense mode).
+#
+# If no "steps" field is specified, both [distill, evaluate] run by default.
+#
+# Config structure:
+#   - _global: Default values inherited by ALL named configs.
+#   - Each named config can override any _global field.
+#   - Key fields:
+#       trajectory   — Path to evaluation trajectory file (input for distill step)
+#       eval_input   — Path to attack data for the evaluate step (default: STAC benchmark)
+#       defense_file — Path to a pre-distilled defense file (for evaluate-only configs)
+#       min_progress — Only distill from attacks with progress >= this value
+#       max_progress — Only distill from attacks with progress <= this value
+#       evaluator    — Which evaluator to use: "stac" (default) or "baseline"
+#
+# Trajectory data lives in data/Eval_restructured/ with this structure:
+#   {stac,toolshield}/{shade_arena,agent_safetybench}/{adaptive,no_planner}/
+#     {model_planner}_{model_agent}/{defense}/gen_res.json
+#
+# Data sources (5 distinct trajectory sets):
+#   1. STAC/SHADE      (Adaptive, ~390)  - stac/shade_arena/adaptive/.../gen_res.json
+#   2. STAC/ASB-gen    (Adaptive, ~422)  - stac/agent_safetybench/adaptive/.../gen_res_full.json
+#   3. STAC/ASB-paper  (Adaptive, ~93)   - stac/agent_safetybench/adaptive/.../gen_res.json
+#   4. TS/SHADE        (Adaptive, ~124)  - toolshield/shade_arena/adaptive/.../gen_res.json
+#   5. TS/ASB          (Adaptive, ~200)  - toolshield/agent_safetybench/adaptive/.../gen_res.json
+#
+# Usage:
+#   python -m Baseline.pipeline_distill_and_eval_defense --config <name>
+#   python -m Baseline.pipeline_distill_and_eval_defense --list-configs
+#   python -m Baseline.pipeline_distill_and_eval_defense --config distill_stac_shade --batch_size 2
+#
+# _global values are inherited by ALL configs. Per-config values override.
+# ============================================================================
+
+# =====================
+# Global defaults
+# =====================
+
+_global:
+  env:
+    OPENAI_API_KEY: "your-key"
+    TOOLSHIELD_MODEL_NAME: "openai/gpt-4.1"
+  model_agent: gpt-4.1
+  model_judge: gpt-4.1
+  batch_size: 50
+  evaluator: stac
+  eval_input: data/STAC_benchmark_data.json
+
+# =====================================================================
+# Source 1: STAC/SHADE (Adaptive, ~390)
+# =====================================================================
+
+distill_stac_shade:
+  description: "Distill from STAC-generated SHADE attacks (adaptive eval, ~390 items)"
+  steps: [distill]
+  trajectory: data/Eval_restructured/stac/shade_arena/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json
+
+distill_stac_shade_successful:
+  description: "Distill from successful STAC/SHADE attacks only (progress >= 3)"
+  steps: [distill]
+  trajectory: data/Eval_restructured/stac/shade_arena/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json
+  min_progress: 3
+
+stac_shade_distill_eval_stac:
+  description: "Distill from STAC/SHADE, evaluate on STAC benchmark"
+  trajectory: data/Eval_restructured/stac/shade_arena/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json
+
+# =====================================================================
+# Source 2: STAC/ASB-gen (Adaptive, ~422)
+# =====================================================================
+
+distill_stac_asb_gen:
+  description: "Distill from STAC-generated ASB attacks (gen pipeline, ~422 items)"
+  steps: [distill]
+  trajectory: data/Eval_restructured/stac/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res_full.json
+
+stac_asb_gen_distill_eval_stac:
+  description: "Distill from STAC/ASB-gen, evaluate on STAC benchmark"
+  trajectory: data/Eval_restructured/stac/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res_full.json
+
+# =====================================================================
+# Source 3: STAC/ASB-paper (Adaptive, ~93)
+# =====================================================================
+
+distill_stac_asb_paper:
+  description: "Distill from STAC-generated ASB attacks in paper benchmark (~93 items)"
+  steps: [distill]
+  trajectory: data/Eval_restructured/stac/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json
+
+stac_asb_paper_distill_eval_stac:
+  description: "Distill from STAC/ASB-paper, evaluate on STAC benchmark"
+  trajectory: data/Eval_restructured/stac/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json
+
+# =====================================================================
+# Source 4: TS/SHADE (Adaptive, ~124)
+# =====================================================================
+
+distill_ts_shade_adaptive:
+  description: "Distill from ToolShield SHADE attacks (adaptive eval, ~124 items)"
+  steps: [distill]
+  trajectory: data/Eval_restructured/toolshield/shade_arena/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json
+
+ts_shade_adaptive_distill_eval_stac:
+  description: "Distill from TS/SHADE adaptive, evaluate on STAC benchmark"
+  trajectory: data/Eval_restructured/toolshield/shade_arena/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json
+
+# =====================================================================
+# Source 5: TS/ASB (Adaptive, ~200)
+# =====================================================================
+
+distill_ts_asb_adaptive:
+  description: "Distill from ToolShield ASB attacks (adaptive eval, ~200 items)"
+  steps: [distill]
+  trajectory: data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json
+
+distill_ts_asb_adaptive_successful:
+  description: "Distill from successful TS/ASB adaptive attacks only (progress >= 3)"
+  steps: [distill]
+  trajectory: data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json
+  min_progress: 3
+
+ts_asb_adaptive_distill_eval_stac:
+  description: "Distill from TS/ASB adaptive, evaluate on STAC benchmark"
+  trajectory: data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json
+
+ts_asb_adaptive_distill_eval_shade:
+  description: "Distill from TS/ASB adaptive, evaluate on SHADE ToolShield attacks"
+  trajectory: data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json
+  eval_input: data/toolshield_shade_stac.json
+
+ts_asb_adaptive_distill_eval_asb:
+  description: "Distill from TS/ASB adaptive, evaluate on ASB ToolShield attacks (self-defense)"
+  trajectory: data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json
+  eval_input: data/toolshield_asb_stac.json
+
+# =====================================================================
+# Evaluate-only configs (use pre-distilled defense files)
+# =====================================================================
+
+eval_stac_with_ts_asb_defense:
+  description: "Evaluate STAC benchmark with defense distilled from TS/ASB adaptive"
+  steps: [evaluate]
+  defense_file: output/toolshield-agent_safetybench-adaptive-gpt-4-1_gpt-4-1-no_defense-toolshield-distilled-defense-experience.json
+
+eval_shade_with_ts_asb_defense:
+  description: "Evaluate SHADE attacks with defense distilled from TS/ASB adaptive"
+  steps: [evaluate]
+  defense_file: output/toolshield-agent_safetybench-adaptive-gpt-4-1_gpt-4-1-no_defense-toolshield-distilled-defense-experience.json
+  eval_input: data/toolshield_shade_stac.json

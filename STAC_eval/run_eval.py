@@ -37,7 +37,7 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = Path(__file__).resolve().parent / "configs.yaml"
 
-ALL_DEFENSES = ["no_defense", "failure_modes", "summarization", "reasoning", "spotlighting"]
+ALL_DEFENSES = ["no_defense", "failure_modes", "summarization", "reasoning", "spotlighting", "toolshield_experience"]
 
 # -------------------------------------------------------------------------
 # Config loading

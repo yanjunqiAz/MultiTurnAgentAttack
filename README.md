@@ -322,7 +322,7 @@ python -m STAC_gen.step_4_eval_adaptive_planning \
 - `--model_planner`: Model for attack planning (default: `gpt-4.1`)
 - `--model_judge`: Model for evaluation (default: `gpt-4.1`)
 - `--model_agent`: Model to evaluate (default: `gpt-4.1`)
-- `--defense`: Defense mechanism (`no_defense`, `failure_modes`, `summarization`, `reasoning`, `spotlighting`) (default: `no_defense`)
+- `--defense`: Defense mechanism (`no_defense`, `failure_modes`, `summarization`, `reasoning`, `spotlighting`, `toolshield_experience`) (default: `no_defense`)
 - `--temperature`: Sampling temperature (default: `0.0`)
 - `--top_p`: Nucleus sampling parameter (default: `0.95`)
 - `--batch_size`: Evaluation batch size (default: `1`)

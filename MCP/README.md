@@ -216,7 +216,7 @@ python MCP/run_eval.py \
 | `--model_judge` | `gpt-4.1` | Judge model (STAC -3 to 3 scale) |
 | `--model_post_eval` | `gpt-4.1-mini` | 3-way post-eval judge model |
 | `--tasks_dir` | auto-detected | OAS task directory for post-eval context |
-| `--defense` | `no_defense` | Defense: `no_defense`, `failure_modes`, `summarization`, `reasoning`, `spotlighting` |
+| `--defense` | `no_defense` | Defense: `no_defense`, `failure_modes`, `summarization`, `reasoning`, `spotlighting`, `toolshield_experience` |
 | `--max_n_turns` | `3` | Max Planner turns |
 | `--max_n_rounds_agent` | `10` | Max Agent tool-call rounds per turn |
 | `--no_state_verify` | off | Skip StateVerifier (Judge-only, faster) |
