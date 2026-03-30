@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import time
 from copy import deepcopy
 from pathlib import Path
 
@@ -54,6 +55,8 @@ def main() -> None:
     parser.add_argument("--dataset", type=str, default="oas",
                         help="Benchmark dataset (for auto-detecting input path)")
     parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--timeout", type=int, default=120,
+                        help="Per-chain timeout in seconds (0=no timeout)")
     parser.add_argument("--max_chains", type=int, default=None)
     parser.add_argument("--split", type=str, default="all",
                         help="Split used in steps 1-2 (for auto-detecting input path)")
@@ -163,8 +166,15 @@ def main() -> None:
 
             # Build interaction history step by step
             interaction_history: list[dict] = []
+            chain_start = time.time()
+            chain_timed_out = False
 
             for step_idx, step in enumerate(steps):
+                # Check per-chain timeout
+                if args.timeout and (time.time() - chain_start) > args.timeout:
+                    print(f"  TIMEOUT: chain took >{args.timeout}s, skipping remaining steps")
+                    chain_timed_out = True
+                    break
                 tool_name = step.get("tool_name", "")
                 parameters = step.get("parameters", {})
                 target_tool_call = json.dumps({

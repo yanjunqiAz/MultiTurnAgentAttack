@@ -14,6 +14,8 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import random
+import time
 from copy import deepcopy
 from pathlib import Path
 
@@ -72,7 +74,12 @@ def main() -> None:
     parser.add_argument("--batch_size", type=int, default=1,
                         help="Process one chain at a time (Verifier is interactive)")
     parser.add_argument("--max_rounds", type=int, default=MAX_VERIFIER_ROUNDS)
-    parser.add_argument("--max_chains", type=int, default=None)
+    parser.add_argument("--timeout", type=int, default=120,
+                        help="Per-chain timeout in seconds (0=no timeout)")
+    parser.add_argument("--max_chains", type=int, default=None,
+                        help="Hard cap on chains (takes first N)")
+    parser.add_argument("--sample_chains", type=int, default=150,
+                        help="Randomly sample N chains (0=no sampling, default 150)")
     parser.add_argument("--split", type=str, default="all",
                         help="Split used in step 1 (for auto-detecting input path)")
     parser.add_argument("--output", type=str, default=None)
@@ -108,6 +115,10 @@ def main() -> None:
     chains = [c for c in chains if c["id"] not in done_ids]
     if args.max_chains:
         chains = chains[:args.max_chains]
+    if args.sample_chains and args.sample_chains > 0 and len(chains) > args.sample_chains:
+        print(f"Sampling {args.sample_chains} chains from {len(chains)} (random)")
+        random.seed(42)
+        chains = random.sample(chains, args.sample_chains)
     print(f"Chains to verify: {len(chains)}")
 
     if not chains:
@@ -168,11 +179,17 @@ def main() -> None:
                 failure_modes=[failure_mode],
             )
 
-            # Run interactive verification loop
+            # Run interactive verification loop with per-round timeout
+            round_num = 0
             for round_num in range(args.max_rounds):
+                round_start = time.time()
                 done = verifier.step(batch_size=1)
-                print(f"  Round {round_num + 1}/{args.max_rounds}: running={verifier.running}")
+                elapsed = time.time() - round_start
+                print(f"  Round {round_num + 1}/{args.max_rounds}: running={verifier.running} ({elapsed:.1f}s)")
                 if done:
+                    break
+                if args.timeout and elapsed > args.timeout:
+                    print(f"  TIMEOUT: round took {elapsed:.1f}s > {args.timeout}s limit, skipping chain")
                     break
 
             # Collect result

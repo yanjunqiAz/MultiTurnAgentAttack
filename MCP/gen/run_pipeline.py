@@ -59,11 +59,15 @@ def main() -> None:
                         help="Limit tasks (step 1)")
     parser.add_argument("--max_chains", type=int, default=None,
                         help="Limit chains to verify/process (steps 2-3)")
+    parser.add_argument("--sample_chains", type=int, default=150,
+                        help="Randomly sample N chains in step 2 (0=no sampling)")
     parser.add_argument("--split", type=str, default="all",
                         choices=["all", "benign", "malicious", "harm"])
     parser.add_argument("--start_step", type=int, default=1, choices=[1, 2, 3])
     parser.add_argument("--end_step", type=int, default=3, choices=[1, 2, 3])
     parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--timeout", type=int, default=120,
+                        help="Per-chain timeout in seconds for steps 2-3 (0=no timeout)")
     parser.add_argument("--temperature", type=float, default=1.0)
     args = parser.parse_args()
 
@@ -105,7 +109,9 @@ def main() -> None:
             "--gen_model", gen_model,
             "--dataset", dataset,
             "--split", args.split,
-            "--batch_size", "1",
+            "--batch_size", str(args.batch_size),
+            "--timeout", str(args.timeout),
+            "--sample_chains", str(args.sample_chains),
         ]
         if args.max_chains:
             step2_args += ["--max_chains", str(args.max_chains)]
@@ -120,6 +126,7 @@ def main() -> None:
             "--dataset", dataset,
             "--split", args.split,
             "--batch_size", str(args.batch_size),
+            "--timeout", str(args.timeout),
         ]
         if args.max_chains:
             step3_args += ["--max_chains", str(args.max_chains)]

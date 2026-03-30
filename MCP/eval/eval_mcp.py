@@ -22,6 +22,7 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import datetime
 import json
 import logging
@@ -139,6 +140,10 @@ def parse_args() -> argparse.Namespace:
                    help="Model for 3-way post-evaluation judge")
     p.add_argument("--tasks_dir", type=Path, default=None,
                    help="Benchmark task directory for richer post-eval context")
+
+    # Timeouts & concurrency
+    p.add_argument("--scenario_timeout", type=int, default=300,
+                   help="Per-scenario timeout in seconds (0=no timeout)")
 
     # Output
     p.add_argument("--output_dir", type=str, default="data/Eval_MCP")
@@ -743,10 +748,27 @@ def main() -> None:
         print(f"  Servers: {scenario.get('mcp_servers', [])}")
         print(f"{'='*70}")
 
-        result = evaluate_scenario(
-            scenario, server_registry, system, state_verifier, args,
-            post_eval_client=post_eval_client,
-        )
+        timeout = getattr(args, "scenario_timeout", 0)
+        if timeout and timeout > 0:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    evaluate_scenario,
+                    scenario, server_registry, system, state_verifier, args,
+                    post_eval_client=post_eval_client,
+                )
+                try:
+                    result = future.result(timeout=timeout)
+                except concurrent.futures.TimeoutError:
+                    print(f"  TIMEOUT: scenario took >{timeout}s, skipping")
+                    result = _error_result(
+                        scenario.get("id", "unknown"),
+                        f"Timeout after {timeout}s",
+                    )
+        else:
+            result = evaluate_scenario(
+                scenario, server_registry, system, state_verifier, args,
+                post_eval_client=post_eval_client,
+            )
         all_results.append(result)
 
         # Save after each scenario (crash-safe)

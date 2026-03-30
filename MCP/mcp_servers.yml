@@ -18,7 +18,7 @@ servers:
 
   playwright:
     command: "docker"
-    args: ["exec", "-i", "mcp-playwright", "npx", "@playwright/mcp", "--headless"]
+    args: ["exec", "-i", "mcp-playwright", "npx", "@playwright/mcp", "--headless", "--browser", "chromium"]
     transport: stdio
     adapter: browser
 

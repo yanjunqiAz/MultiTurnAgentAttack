@@ -1059,6 +1059,7 @@ class OpenAILM(LM):
                     print(f"Created batch of {len(formatted_prompts)}")
                     print(f"\n--- Waiting for OpenAI batch job to complete (ID: {created_batch.id}) ---")
                     batch_id = created_batch.id
+                    poll_delay = 5  # exponential backoff: 5s → 10s → 20s → 30s cap
                     while True:
                         status = self.get_batch_status(batch_id)
                         print(f"Current batch status: {status.status}...")
@@ -1081,7 +1082,8 @@ class OpenAILM(LM):
                         elif status.status in ['failed', 'expired', 'cancelled']:
                             print(f"Batch job {status.status}. No results will be returned.")
                             raise Exception("Task failed.")
-                        time.sleep(30)
+                        time.sleep(poll_delay)
+                        poll_delay = min(poll_delay * 2, 30)
             except (ValueError, openai.APIError) as e:
                 print(f"An error occurred during the batch process: {e}")
                 outputs = ([{}] if return_raw_output else [""]) * len(user_prompts)

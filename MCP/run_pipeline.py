@@ -165,6 +165,8 @@ def main() -> None:
                         help="Limit tasks (gen step 1)")
     parser.add_argument("--max_chains", type=int, default=None,
                         help="Limit chains (gen steps 2-3)")
+    parser.add_argument("--sample_chains", type=int, default=150,
+                        help="Randomly sample N chains in gen step 2 (0=no sampling)")
     parser.add_argument("--split", type=str, default="all",
                         choices=["all", "benign", "malicious", "harm"])
     parser.add_argument("--start_step", type=int, default=1, choices=[1, 2, 3],
@@ -174,6 +176,10 @@ def main() -> None:
     parser.add_argument("--gen_batch_size", type=int, default=32,
                         help="Batch size for gen steps")
     parser.add_argument("--gen_temperature", type=float, default=1.0)
+    parser.add_argument("--gen_timeout", type=int, default=120,
+                        help="Per-chain timeout in seconds for gen steps 2-3 (0=no timeout)")
+    parser.add_argument("--eval_timeout", type=int, default=300,
+                        help="Per-scenario timeout in seconds for eval (0=no timeout)")
 
     # Eval args
     parser.add_argument("--defense", type=str, default="no_defense",
@@ -252,6 +258,8 @@ def main() -> None:
             "--start_step", str(args.start_step),
             "--end_step", str(args.end_step),
             "--batch_size", str(args.gen_batch_size),
+            "--timeout", str(args.gen_timeout),
+            "--sample_chains", str(args.sample_chains),
             "--temperature", str(args.gen_temperature),
         ]
         if args.max_tasks:
@@ -314,6 +322,7 @@ def main() -> None:
         "--max_n_turns", str(args.max_n_turns),
         "--max_n_rounds_agent", str(args.max_n_rounds_agent),
         "--output_dir", eval_output_dir,
+        "--scenario_timeout", str(args.eval_timeout),
     ]
     if args.no_state_verify:
         eval_args.append("--no_state_verify")

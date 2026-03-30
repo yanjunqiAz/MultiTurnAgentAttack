@@ -28,7 +28,7 @@ services:
   playwright:
     image: mcr.microsoft.com/playwright:v1.52.0-noble
     container_name: mcp-playwright
-    command: ["sh", "-c", "npm install -g @playwright/mcp && exec tail -f /dev/null"]
+    command: ["sh", "-c", "npm install -g @playwright/mcp && npx playwright install chromium && exec tail -f /dev/null"]
     networks: [sandbox]
     volumes:
       - workspace:/workspace
