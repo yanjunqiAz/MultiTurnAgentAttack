@@ -136,13 +136,13 @@ def load_asb_tool_schemas(safetybench_path: Path) -> Dict[str, List[dict]]:
 def load_shade_tool_info(shade_root: Path) -> Dict[str, dict]:
     """Extract tool names and schemas for SHADE-Arena environments.
 
-    Uses shade_tool_extractor.py (must be in the same Baseline/ directory).
+    Uses shade_tool_extractor.py (in Baseline/attack_gen/).
     Returns {env_name: {"tool_names": [...], "functions": [...]}}
     """
     try:
-        from Baseline.shade_tool_extractor import extract_for_environment
+        from Baseline.attack_gen.shade_tool_extractor import extract_for_environment
     except ImportError:
-        print("  Warning: Baseline.shade_tool_extractor not found; SHADE tool matching disabled")
+        print("  Warning: Baseline.attack_gen.shade_tool_extractor not found; SHADE tool matching disabled")
         return {}
 
     result = {}

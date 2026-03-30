@@ -1,0 +1,198 @@
+# ============================================================================
+# MCP Pipeline Configurations
+#
+# Usage:
+#   python MCP/run_eval.py --config <name>         # eval only
+#   python MCP/run_post_eval.py --config <name>    # post-eval only
+#   python MCP/run_pipeline.py --config <name>     # gen + eval
+#   python MCP/run_pipeline.py --list_configs      # show all
+#
+# _global values are inherited by ALL configs. Per-config values override.
+# ============================================================================
+
+# =====================
+# Global defaults
+# =====================
+
+_global:
+  model_agent: gpt-4.1
+  model_planner: gpt-4.1
+  model_judge: gpt-4.1
+  model_verifier: gpt-4.1
+  judge_model: gpt-4.1-mini        # post_eval.py standalone judge model
+  model_post_eval: gpt-4.1-mini   # inline 3-way judge model in eval_mcp.py
+  defense: no_defense
+  max_n_turns: 3
+  max_n_rounds_agent: 10
+  mcp_config: MCP/mcp_servers.yml
+  output_dir: data/Eval_MCP
+  tasks_dir: MCP/benchmarks_data/openagentsafety/tasks
+
+# =====================
+# OAS benchmark configs
+# =====================
+
+oas_gpt41:
+  description: "OAS benchmark with GPT-4.1 (no defense)"
+  benchmark: oas
+  benchmark_split: all
+
+oas_gpt41_benign:
+  description: "OAS benchmark, benign-intent tasks only"
+  benchmark: oas
+  benchmark_split: benign
+
+oas_gpt41_malicious:
+  description: "OAS benchmark, malicious-intent tasks only"
+  benchmark: oas
+  benchmark_split: malicious
+
+oas_gpt41_smoke:
+  description: "OAS smoke test (2 tasks)"
+  benchmark: oas
+  benchmark_split: all
+  max_tasks: 2
+  no_state_verify: true
+
+oas_gpt41_all_defenses:
+  description: "OAS benchmark across all defense strategies"
+  benchmark: oas
+  defense: [no_defense, failure_modes, summarization, reasoning, spotlighting, toolshield_experience]
+
+# =====================
+# Defense sweep configs
+# =====================
+
+oas_reasoning:
+  description: "OAS with reasoning defense"
+  benchmark: oas
+  defense: reasoning
+
+oas_spotlighting:
+  description: "OAS with spotlighting defense"
+  benchmark: oas
+  defense: spotlighting
+
+oas_failure_modes:
+  description: "OAS with failure_modes defense"
+  benchmark: oas
+  defense: failure_modes
+
+oas_summarization:
+  description: "OAS with summarization defense"
+  benchmark: oas
+  defense: summarization
+
+# =====================
+# Model sweep configs
+# =====================
+
+oas_gpt41_mini:
+  description: "OAS with GPT-4.1 mini"
+  benchmark: oas
+  model_agent: gpt-4.1-mini
+
+oas_gpt41_nano:
+  description: "OAS with GPT-4.1 nano"
+  benchmark: oas
+  model_agent: gpt-4.1-nano
+
+# =====================
+# SafeArena configs
+# =====================
+
+safearena_gpt41:
+  description: "SafeArena benchmark with GPT-4.1"
+  benchmark: safearena
+
+# =====================
+# Hand-crafted scenarios
+# =====================
+
+scenarios_gpt41:
+  description: "Hand-crafted YAML scenarios"
+  scenarios: MCP/benchmarks_data/quick_scenarios/
+
+# =====================
+# Post-evaluation only
+# =====================
+
+post_eval_gpt41:
+  description: "Post-evaluate existing GPT-4.1 results"
+  post_eval_only: true
+
+post_eval_gpt41_mini:
+  description: "Post-evaluate GPT-4.1 mini results"
+  post_eval_only: true
+  model_agent: gpt-4.1-mini
+
+# =============================================
+# Unified pipeline configs (gen + eval)
+# Used with: python MCP/run_pipeline.py --config <name>
+# =============================================
+
+pipeline_gpt41:
+  description: "Full pipeline: gen (all OAS tasks, 3 chains) + eval"
+  model: gpt-4.1
+  dataset: oas
+  n_cases: 3
+  split: all
+
+pipeline_smoke:
+  description: "Pipeline smoke test (2 tasks, 1 chain, no state verify)"
+  model: gpt-4.1
+  dataset: oas
+  n_cases: 1
+  max_tasks: 2
+  no_state_verify: true
+  no_post_eval: true
+
+pipeline_gpt41_benign:
+  description: "Pipeline on benign-intent OAS tasks only"
+  model: gpt-4.1
+  dataset: oas
+  n_cases: 3
+  split: benign
+
+pipeline_gpt41_malicious:
+  description: "Pipeline on malicious-intent OAS tasks only"
+  model: gpt-4.1
+  dataset: oas
+  n_cases: 3
+  split: malicious
+
+pipeline_gpt41_mini:
+  description: "Pipeline with GPT-4.1 mini as agent"
+  model: gpt-4.1
+  dataset: oas
+  model_agent: gpt-4.1-mini
+  n_cases: 3
+  split: all
+
+pipeline_gen_only:
+  description: "Gen steps 1-3 only (no eval)"
+  model: gpt-4.1
+  dataset: oas
+  gen_only: true
+  n_cases: 3
+  split: all
+
+pipeline_eval_only:
+  description: "Eval existing gen output only (no gen)"
+  model: gpt-4.1
+  dataset: oas
+  eval_only: true
+
+pipeline_eval_reasoning:
+  description: "Eval existing gen output with reasoning defense"
+  model: gpt-4.1
+  dataset: oas
+  eval_only: true
+  defense: reasoning
+
+pipeline_eval_spotlighting:
+  description: "Eval existing gen output with spotlighting defense"
+  model: gpt-4.1
+  dataset: oas
+  eval_only: true
+  defense: spotlighting

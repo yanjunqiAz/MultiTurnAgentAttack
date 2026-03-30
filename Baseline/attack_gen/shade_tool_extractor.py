@@ -8,8 +8,8 @@ Produces the same format ToolShield's tree_generation expects:
   - A detailed tool capabilities string
 
 Usage:
-    python -m Baseline.shade_tool_extractor --shade-root /path/to/SHADE_Arena
-    python -m Baseline.shade_tool_extractor --shade-root /path/to/SHADE_Arena --env banking
+    python -m Baseline.attack_gen.shade_tool_extractor --shade-root /path/to/SHADE_Arena
+    python -m Baseline.attack_gen.shade_tool_extractor --shade-root /path/to/SHADE_Arena --env banking
 """
 
 from __future__ import annotations

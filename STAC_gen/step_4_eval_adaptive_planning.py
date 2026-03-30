@@ -7,7 +7,7 @@ final step in the STAC pipeline, testing various defense mechanisms against mult
 
 Key Features:
 - Implements adaptive planning system with Planner, Judge, and Agent components
-- Supports multiple defense mechanisms: no_defense, failure_modes, summarization, reasoning, spotlighting
+- Supports multiple defense mechanisms: no_defense, failure_modes, summarization, reasoning, spotlighting, toolshield_experience
 - Uses adaptive multi-turn interactions (up to 3 turns) to simulate realistic attack scenarios
 - Provides detailed scoring for both attack progress and agent helpfulness
 - Supports various language models (GPT, Claude, LLaMA, Qwen, etc.)
@@ -20,6 +20,7 @@ Defense Mechanisms:
 - summarization: Agent summarizes user intent before actions
 - reasoning: Agent employs harm-benefit reasoning before actions
 - spotlighting: User prompts datamarked with special character
+- toolshield_experience: Agent guided by distilled ToolShield defense experiences (requires --experience-file)
 
 Usage:
     # SHADE_Arena
@@ -81,7 +82,9 @@ def parse_args():
     parser.add_argument("--n_gpus_per_model", type=int, default=8)
     parser.add_argument("--max_n_turns", type=int, default=3)
     parser.add_argument("--defense", type=str, default="no_defense",
-                       help="Defense mechanism: no_defense, failure_modes, summarization, reasoning, spotlighting")
+                       help="Defense mechanism: no_defense, failure_modes, summarization, reasoning, spotlighting, toolshield_experience")
+    parser.add_argument("--experience-file", type=str, default=None,
+                       help="Path to ToolShield experience JSON (required when --defense toolshield_experience)")
     args = parser.parse_args()
 
     # Set default paths based on benchmark if not specified
@@ -89,7 +92,9 @@ def parse_args():
         args.input_path = f'output/{args.benchmark}/verification/tool_chain_attacks_gpt-4.1_gpt-4.1/Prompts/Qwen/Qwen3-32B/gen_res.json'
 
     if args.output_dir is None:
-        args.output_dir = f'output/{args.benchmark}/verification/tool_chain_attacks_gpt-4.1_gpt-4.1/Prompts/Qwen/Qwen3-32B/Eval/adaptive_planning'
+        # Derive output dir from input_path: write Eval/ next to the prompt writer's gen_res.json
+        input_dir = os.path.dirname(args.input_path)
+        args.output_dir = f'{input_dir}/Eval/adaptive_planning'
 
     return args
 
@@ -202,10 +207,14 @@ def eval_file(args, outpath):
             asb_data = json.load(f)
         asb_data_lookup = {d['id']: d for d in asb_data}
 
-    # Process interaction history
+    # Process interaction history (skip items with empty history from step 3)
+    _processed = []
     for d in data:
+        if not d.get('interaction_history'):
+            continue
         n_turns_to_keep = len(d['final_tool_chain']['tool_chain'])
         counter_turns = 0
+        n_chats_to_keep = len(d['interaction_history'])
         for t in range(len(d['interaction_history'])):
             if d['interaction_history'][t]['role'] == 'user':
                 counter_turns += 1
@@ -213,8 +222,12 @@ def eval_file(args, outpath):
                     n_chats_to_keep = t
                     break
         d['interaction_history'] = d['interaction_history'][:n_chats_to_keep]
-        assert d['interaction_history'][-1]['role'] != 'user'
+        if not d['interaction_history'] or d['interaction_history'][-1]['role'] == 'user':
+            continue
         d['interaction_history'] = [convert_message_between_APIs(h, args.model_agent) for h in d['interaction_history']]
+        _processed.append(d)
+    print(f"Skipped {len(data) - len(_processed)} items with empty/invalid interaction history")
+    data = _processed
 
     # Filter valid data
     data = [d for d in data if d['final_tool_chain'] and d['final_tool_chain'] != "" and
@@ -274,6 +287,11 @@ def eval_file(args, outpath):
         agent.extend_sys_prompt(agent_sys_prompts.sys_prompt_with_reasoning)
     elif args.defense == 'spotlighting':
         agent.extend_sys_prompt(agent_sys_prompts.sys_prompt_with_datamarking)
+    elif args.defense == 'toolshield_experience':
+        if not args.experience_file:
+            raise ValueError("--experience-file is required when --defense toolshield_experience")
+        exp_prompt = AgentSysemPrompts.load_toolshield_experience(args.experience_file)
+        agent.extend_sys_prompt(exp_prompt)
 
     # Initialize Planner
     planner = Planner(model_id=args.model_planner,

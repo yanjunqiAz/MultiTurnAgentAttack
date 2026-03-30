@@ -251,7 +251,7 @@ class BedrockLM(LM):
                             new_formatted_prompt.append(new_p)
                     elif p['role'] == 'tool':
                         try:
-                            tool_result_content = json.loads[p['content']]
+                            tool_result_content = json.loads(p['content'])
                             content_type = 'json'
                         except:
                             tool_result_content = p['content']
@@ -680,12 +680,12 @@ class VllmLM(LM):
         n_tries = 0
         outputs = ["" for _ in formatted_prompts]
         while (False in valid) and (n_tries < 10):
-            new_outputs = self.model.generate(prompts=[f for f_i, f in enumerate(formatted_prompts) if not valid[f_i]],
+            invalid_indices = [i for i, v in enumerate(valid) if not v]
+            new_outputs = self.model.generate(prompts=[formatted_prompts[i] for i in invalid_indices],
                                                 sampling_params=sampling_params,
                                                 use_tqdm=True)
-            for output_i, output in enumerate(new_outputs):
-                if not valid[output_i]:
-                    outputs[output_i] = new_outputs if return_raw_output else new_outputs[output_i].outputs[0].text
+            for new_i, orig_i in enumerate(invalid_indices):
+                outputs[orig_i] = new_outputs if return_raw_output else new_outputs[new_i].outputs[0].text
             if 'qwen' in self.model_id.lower():
                 new_outputs = []
                 for output in outputs:
@@ -1001,7 +1001,7 @@ class OpenAILM(LM):
                  return_raw_output: bool = False,
                  spotlighting: bool = False,
                  role: str = None,
-                 batch_size: Optional[int] = 1) -> Union[List[str], List[Dict]]:
+                 batch_size: Optional[int] = None) -> Union[List[str], List[Dict]]:
         """
         Generates responses for a list of prompts using either synchronous or batch API calls.
 
@@ -1042,7 +1042,7 @@ class OpenAILM(LM):
         # logging.info(f"\n\n[TOOL CONFIGS]: {tool_configs}")
 
         # === Decide between Batch or Synchronous API ===
-        if batch_size is not None:
+        if batch_size is not None and len(formatted_prompts) >= batch_size:
             # --- Use Batch API for large jobs ---
             print(f"Using Batch API.")
             try:
@@ -1059,6 +1059,7 @@ class OpenAILM(LM):
                     print(f"Created batch of {len(formatted_prompts)}")
                     print(f"\n--- Waiting for OpenAI batch job to complete (ID: {created_batch.id}) ---")
                     batch_id = created_batch.id
+                    poll_delay = 5  # exponential backoff: 5s → 10s → 20s → 30s cap
                     while True:
                         status = self.get_batch_status(batch_id)
                         print(f"Current batch status: {status.status}...")
@@ -1081,7 +1082,8 @@ class OpenAILM(LM):
                         elif status.status in ['failed', 'expired', 'cancelled']:
                             print(f"Batch job {status.status}. No results will be returned.")
                             raise Exception("Task failed.")
-                        time.sleep(30)
+                        time.sleep(poll_delay)
+                        poll_delay = min(poll_delay * 2, 30)
             except (ValueError, openai.APIError) as e:
                 print(f"An error occurred during the batch process: {e}")
                 outputs = ([{}] if return_raw_output else [""]) * len(user_prompts)
@@ -1112,7 +1114,7 @@ class OpenAILM(LM):
                             )
                         message = completion.choices[0].message
                         if return_raw_output:
-                            outputs.append(message)
+                            outputs.append(message.to_dict())
                         else:
                             content = json.dumps(message.tool_calls) if message.tool_calls else message.content or ""
                             outputs.append(content)

@@ -1,5 +1,31 @@
 # ============================================================================
-# Baseline Pipeline Configurations
+# ToolShield Baseline Attack Pipeline Configurations
+# ============================================================================
+#
+# This file defines named configurations for the ToolShield baseline attack
+# pipeline (run_baseline_pipeline.py). ToolShield is an existing tool-safety
+# framework used as a comparison baseline against STAC-generated attacks.
+#
+# The pipeline has up to 3 steps, selectable per config:
+#   1. generate  — Use ToolShield to generate adversarial tool-use attacks
+#                  against SHADE-Arena and/or Agent-SafetyBench (ASB) environments.
+#   2. convert   — Convert raw ToolShield output into STAC-compatible format
+#                  so it can be evaluated with the same eval harness.
+#   3. evaluate  — Run the converted attacks through the STAC adaptive planning
+#                  system (Planner -> Agent -> Judge loop) and score results.
+#
+# Config structure:
+#   - _global: Default values inherited by ALL named configs.
+#   - Each named config can override any _global field.
+#   - Key fields:
+#       steps       — Which pipeline steps to run (list subset of [generate, convert, evaluate])
+#       dataset     — Target benchmark: "shade", "asb", or "both"
+#       model_agent — LLM used as the agent under attack during evaluation
+#       model_judge — LLM used as the judge to score attack success
+#       defense     — Defense strategy applied to the agent (string or list for sweeps)
+#       batch_size  — Concurrent eval batch size (512 for OpenAI, ~10 for Bedrock)
+#       input_path  — Path to pre-generated attack data (for evaluate-only configs)
+#       shade_env   — Optional: restrict SHADE generation to a specific environment
 #
 # Usage:
 #   python -m Baseline.run_baseline_pipeline --config <name>
@@ -40,7 +66,7 @@ shade_gpt41_all_defenses:
   description: "SHADE-Arena: evaluate GPT-4.1 across all defense strategies"
   steps: [generate, convert, evaluate]
   dataset: shade
-  defense: [no_defense, failure_modes, summarization, reasoning, spotlighting]
+  defense: [no_defense, failure_modes, summarization, reasoning, spotlighting, toolshield_experience]
 
 asb_gpt41:
   description: "Agent_SafetyBench full pipeline with GPT-4.1 (no defense)"
@@ -76,7 +102,7 @@ eval_all_defenses:
   steps: [evaluate]
   dataset: shade
   input_path: data/toolshield_shade_stac.json
-  defense: [no_defense, failure_modes, summarization, reasoning, spotlighting]
+  defense: [no_defense, failure_modes, summarization, reasoning, spotlighting, toolshield_experience]
 
 eval_model_sweep:
   description: "Evaluate existing data across multiple agent models"

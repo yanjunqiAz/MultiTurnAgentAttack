@@ -387,7 +387,6 @@ def main_agent_safetybench(args):
         # Save checkpoint after batch
         save_generated_attacks(args.output_path, all_generated_attacks)
         logging.info(f"[CHECKPOINT] Saved {len(outputs)} generated attacks")
-        break
 
 
 def main_shade_arena(args):

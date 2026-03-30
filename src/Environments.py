@@ -200,14 +200,14 @@ class AgentSafetyBenchEnvironment(BaseEnvironment):
                     
                 self.tool_config = {'tools': tools_list} if len(tool_descs) > 0 else None
                 
-            elif 'gpt' in self.model_id.lower():
+            elif 'gpt' in self.model_id.lower() or 'o3' in self.model_id.lower() or 'o4' in self.model_id.lower():
                 for item in tool_descs:
                     item['type'] = "object"
-                    
+
                 for i, item in enumerate(tool_descs):
                     newitem = {'type': 'function', 'function': item}
                     tool_descs[i] = newitem
-                    
+
                 self.tool_config = tool_descs
                 
             else:
@@ -448,7 +448,7 @@ class SHADEArenaEnvironment(BaseEnvironment):
                         }
                     }
                 })
-            elif 'gpt' in self.model_id.lower():
+            elif 'gpt' in self.model_id.lower() or 'o3' in self.model_id.lower() or 'o4' in self.model_id.lower():
                 tool_info = {'type': 'function',
                             'function': {'name': name,
                                         'description': description,

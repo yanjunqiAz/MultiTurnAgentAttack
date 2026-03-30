@@ -269,11 +269,11 @@ class TestConvertAttack:
 
 class TestShadeToolExtractor:
     def test_environment_tool_files_keys(self):
-        from Baseline.shade_tool_extractor import ENVIRONMENT_TOOL_FILES
+        from Baseline.attack_gen.shade_tool_extractor import ENVIRONMENT_TOOL_FILES
         assert set(ENVIRONMENT_TOOL_FILES.keys()) == {"banking", "travel", "workspace", "spam_filter"}
 
     def test_extract_for_environment(self):
-        from Baseline.shade_tool_extractor import extract_for_environment
+        from Baseline.attack_gen.shade_tool_extractor import extract_for_environment
         shade_root = REPO_ROOT / "SHADE_Arena"
         if not shade_root.is_dir():
             pytest.skip("SHADE_Arena not found")
@@ -284,12 +284,12 @@ class TestShadeToolExtractor:
         assert all("name" in f for f in functions)
 
     def test_extract_unknown_env(self):
-        from Baseline.shade_tool_extractor import extract_for_environment
+        from Baseline.attack_gen.shade_tool_extractor import extract_for_environment
         with pytest.raises(FileNotFoundError, match="Tools directory not found"):
             extract_for_environment(Path("/nonexistent"), "fake_env")
 
     def test_build_tool_capabilities_string(self):
-        from Baseline.shade_tool_extractor import build_tool_capabilities_string
+        from Baseline.attack_gen.shade_tool_extractor import build_tool_capabilities_string
         funcs = [
             {"name": "send_email", "short_doc": "Send an email", "file": "email_tools.py"},
             {"name": "get_balance", "short_doc": "Get account balance", "file": "financial_transfer.py"},
@@ -307,17 +307,17 @@ class TestShadeToolExtractor:
 
 class TestAttackSafetybench:
     def test_extract_tool_names(self, asb_tool_schemas):
-        from Baseline.attack_safetybench import extract_tool_names
+        from Baseline.attack_gen.attack_safetybench import extract_tool_names
         names = extract_tool_names(asb_tool_schemas)
         assert names == ["transfer_funds", "send_message"]
 
     def test_extract_tool_names_missing_name(self):
-        from Baseline.attack_safetybench import extract_tool_names
+        from Baseline.attack_gen.attack_safetybench import extract_tool_names
         schemas = [{"description": "no name"}, {"name": "has_name"}]
         assert extract_tool_names(schemas) == ["has_name"]
 
     def test_build_tool_description(self, asb_tool_schemas):
-        from Baseline.attack_safetybench import build_tool_description
+        from Baseline.attack_gen.attack_safetybench import build_tool_description
         desc = build_tool_description("Bank", asb_tool_schemas)
         assert "'Bank'" in desc
         assert "2 tool(s)" in desc
@@ -325,7 +325,7 @@ class TestAttackSafetybench:
         assert "from_account" in desc
 
     def test_discover_environments(self):
-        from Baseline.attack_safetybench import discover_environments
+        from Baseline.attack_gen.attack_safetybench import discover_environments
         asb_path = REPO_ROOT / "Agent_SafetyBench"
         if not asb_path.is_dir():
             pytest.skip("Agent_SafetyBench not found")
@@ -375,7 +375,7 @@ class TestConfigLoading:
         if sweep is None:
             pytest.skip("shade_gpt41_all_defenses config not found")
         assert isinstance(sweep["defense"], list)
-        assert len(sweep["defense"]) == 5
+        assert len(sweep["defense"]) == 6
 
     def test_apply_config(self):
         import argparse
@@ -427,7 +427,7 @@ class TestEnvVarManagement:
 class TestConfigsYamlStructure:
     @pytest.fixture
     def raw_yaml(self):
-        with open(REPO_ROOT / "Baseline" / "configs.yaml") as f:
+        with open(REPO_ROOT / "Baseline" / "toolshield_attack_configs.yaml") as f:
             return yaml.safe_load(f)
 
     def test_global_exists(self, raw_yaml):
@@ -452,7 +452,7 @@ class TestConfigsYamlStructure:
                 f"Config '{name}' has invalid dataset: {ds}"
 
     def test_defense_values_valid(self, raw_yaml):
-        valid = {"no_defense", "failure_modes", "summarization", "reasoning", "spotlighting"}
+        valid = {"no_defense", "failure_modes", "summarization", "reasoning", "spotlighting", "toolshield_experience"}
         for name, cfg in raw_yaml.items():
             if name == "_global":
                 continue

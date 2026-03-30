@@ -8,7 +8,7 @@ Runs up to three stages in sequence:
   3. evaluate  -- Run attacks against an agent and score with LLM judge
 
 Each stage can be run independently or as part of the full pipeline.
-Use --config to load predefined configurations from configs.yaml.
+Use --config to load predefined configurations from toolshield_attack_configs.yaml.
 
 Examples:
     # Run a named config
@@ -44,7 +44,7 @@ import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONFIG_PATH = Path(__file__).resolve().parent / "configs.yaml"
+CONFIG_PATH = Path(__file__).resolve().parent / "toolshield_attack_configs.yaml"
 
 TOOLSHIELD_INSTALL_CMD = "pip install git+https://github.com/CHATS-lab/ToolShield.git"
 LITELLM_INSTALL_CMD = "pip install litellm"
@@ -56,14 +56,14 @@ SHADE_STAC_PATH = "data/toolshield_shade_stac.json"
 ASB_STAC_PATH = "data/toolshield_asb_stac.json"
 
 ALL_STEPS = ["generate", "convert", "evaluate"]
-ALL_DEFENSES = ["no_defense", "failure_modes", "summarization", "reasoning", "spotlighting"]
+ALL_DEFENSES = ["no_defense", "failure_modes", "summarization", "reasoning", "spotlighting", "toolshield_experience"]
 
 # -------------------------------------------------------------------------
 # Config loading
 # -------------------------------------------------------------------------
 
 def load_configs() -> dict[str, Any]:
-    """Load named configurations from configs.yaml.
+    """Load named configurations from toolshield_attack_configs.yaml.
 
     The special ``_global`` key is not a runnable config. All of its values
     are merged as defaults into every other config (per-config values win).
@@ -97,7 +97,7 @@ def list_configs() -> None:
     """Print all available configurations and exit."""
     configs = load_configs()
     if not configs:
-        print("No configurations found in configs.yaml")
+        print("No configurations found in toolshield_attack_configs.yaml")
         sys.exit(0)
 
     print(f"\nAvailable configurations ({CONFIG_PATH.name}):\n")
@@ -181,7 +181,7 @@ def run_cmd(cmd: list[str], description: str) -> None:
 def step_generate(args: argparse.Namespace) -> None:
     """Stage 1: Generate attacks with ToolShield."""
     if args.dataset in ("shade", "both"):
-        cmd = [sys.executable, "-m", "Baseline.generate_shade_attacks",
+        cmd = [sys.executable, "-m", "Baseline.attack_gen.generate_shade_attacks",
                "--output-dir", SHADE_ATTACK_DIR]
         if args.env:
             cmd += ["--env", args.env]
@@ -190,7 +190,7 @@ def step_generate(args: argparse.Namespace) -> None:
         run_cmd(cmd, "Generate SHADE-Arena attacks")
 
     if args.dataset in ("asb", "both"):
-        cmd = [sys.executable, "-m", "Baseline.attack_safetybench",
+        cmd = [sys.executable, "-m", "Baseline.attack_gen.attack_safetybench",
                "--output-dir", ASB_ATTACK_DIR]
         if args.asb_envs:
             cmd += ["--envs"] + args.asb_envs
@@ -335,7 +335,7 @@ def main() -> None:
     # Config
     parser.add_argument(
         "--config", nargs="+", default=None, metavar="NAME",
-        help="Named config(s) from configs.yaml (run in sequence)",
+        help="Named config(s) from toolshield_attack_configs.yaml (run in sequence)",
     )
     parser.add_argument(
         "--list-configs", action="store_true",

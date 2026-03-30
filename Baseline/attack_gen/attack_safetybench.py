@@ -15,24 +15,24 @@ Usage:
     export ANTHROPIC_API_KEY="your-key"   # or any LiteLLM-supported provider key
 
     # Run against all SafetyBench environments
-    python -m Baseline.attack_safetybench \
+    python -m Baseline.attack_gen.attack_safetybench \
         --safetybench-path /path/to/Agent_SafetyBench \
         --output-dir output/safetybench_attacks
 
     # Run against specific environments only
-    python -m Baseline.attack_safetybench \
+    python -m Baseline.attack_gen.attack_safetybench \
         --safetybench-path /path/to/Agent_SafetyBench \
         --output-dir output/safetybench_attacks \
         --envs Email Bank SocialMedia
 
     # Skip environments with no meaningful tools (< 2 tools)
-    python -m Baseline.attack_safetybench \
+    python -m Baseline.attack_gen.attack_safetybench \
         --safetybench-path /path/to/Agent_SafetyBench \
         --output-dir output/safetybench_attacks \
         --min-tools 2
 
     # Dry-run: just show what would be processed
-    python -m Baseline.attack_safetybench \
+    python -m Baseline.attack_gen.attack_safetybench \
         --safetybench-path /path/to/Agent_SafetyBench \
         --dry-run
 """

@@ -1,0 +1,30 @@
+# MCP Server Registry
+#
+# Maps server names to MCP transports and adapter types.
+# eval_mcp.py reads this via --mcp_config (defaults to this file).
+#
+# Start containers first:
+#   cd MCP/docker && docker compose up -d
+#
+# Servers are accessed via `docker exec -i` over stdio transport.
+# No supergateway or HTTP endpoints needed.
+
+servers:
+  filesystem:
+    command: "docker"
+    args: ["exec", "-i", "mcp-filesystem", "mcp-server-filesystem", "/workspace"]
+    transport: stdio
+    adapter: filesystem
+
+  playwright:
+    command: "docker"
+    args: ["exec", "-i", "mcp-playwright", "npx", "@playwright/mcp", "--headless", "--browser", "chromium"]
+    transport: stdio
+    adapter: browser
+
+  # Uncomment if you add a postgres server:
+  # postgres:
+  #   command: "docker"
+  #   args: ["exec", "-i", "mcp-postgres", "mcp-server-postgres"]
+  #   transport: stdio
+  #   adapter: database

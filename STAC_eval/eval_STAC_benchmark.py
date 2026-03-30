@@ -10,7 +10,7 @@ where each item contains a 'generation_config.dataset' field indicating its benc
 
 Key Features:
 - Implements adaptive planning system with Planner, Judge, and Agent components
-- Supports multiple defense mechanisms: no_defense, failure_modes, summarization, reasoning, spotlighting
+- Supports multiple defense mechanisms: no_defense, failure_modes, summarization, reasoning, spotlighting, toolshield_experience
 - Uses adaptive multi-turn interactions (up to 3 turns) to simulate realistic attack scenarios
 - Provides detailed scoring for both attack progress and agent helpfulness
 - Supports various language models (GPT, Claude, LLaMA, Qwen, etc.)
@@ -23,6 +23,7 @@ Defense Mechanisms:
 - summarization: Agent summarizes user intent before actions
 - reasoning: Agent employs harm-benefit reasoning before actions
 - spotlighting: User prompts datamarked with special character
+- toolshield_experience: Agent guided by distilled ToolShield defense experiences (requires --experience-file)
 
 Usage:
     python -m STAC_eval.eval_STAC_benchmark --model_agent gpt-4.1 --defense no_defense --batch_size 512
@@ -79,7 +80,9 @@ def parse_args():
     parser.add_argument("--n_gpus_per_model", type=int, default=8)
     parser.add_argument("--max_n_turns", type=int, default=3)
     parser.add_argument("--defense", type=str, default="no_defense",
-                       help="Defense mechanism: no_defense, failure_modes, summarization, reasoning, spotlighting")
+                       help="Defense mechanism: no_defense, failure_modes, summarization, reasoning, spotlighting, toolshield_experience")
+    parser.add_argument("--experience-file", type=str, default=None,
+                       help="Path to ToolShield experience JSON (required when --defense toolshield_experience)")
     args = parser.parse_args()
     return args
 
@@ -204,6 +207,7 @@ def eval_file(args, outpath):
     for d in data:
         n_turns_to_keep = len(d['attack_plan']['verified_tool_chain'])
         counter_turns = 0
+        n_chats_to_keep = len(d['interaction_history'])
         for t in range(len(d['interaction_history'])):
             if d['interaction_history'][t]['role'] == 'user':
                 counter_turns += 1
@@ -277,6 +281,11 @@ def eval_file(args, outpath):
         agent.extend_sys_prompt(agent_sys_prompts.sys_prompt_with_reasoning)
     elif args.defense == 'spotlighting':
         agent.extend_sys_prompt(agent_sys_prompts.sys_prompt_with_datamarking)
+    elif args.defense == 'toolshield_experience':
+        if not args.experience_file:
+            raise ValueError("--experience-file is required when --defense toolshield_experience")
+        exp_prompt = AgentSysemPrompts.load_toolshield_experience(args.experience_file)
+        agent.extend_sys_prompt(exp_prompt)
 
     # Initialize Planner
     planner = Planner(model_id=args.model_planner,

@@ -12,18 +12,18 @@ Usage:
     export TOOLSHIELD_MODEL_NAME="anthropic/claude-sonnet-4.5"
     export ANTHROPIC_API_KEY="your-key"   # or any LiteLLM-supported provider key
 
-    python -m Baseline.generate_shade_attacks \
+    python -m Baseline.attack_gen.generate_shade_attacks \
         --shade-root /path/to/SHADE_Arena \
         --env banking \
         --output-dir output/shade_attacks/banking
 
     # Generate for all environments
-    python -m Baseline.generate_shade_attacks \
+    python -m Baseline.attack_gen.generate_shade_attacks \
         --shade-root /path/to/SHADE_Arena \
         --output-dir output/shade_attacks
 
     # Generate only the safety tree + tasks (no execution needed)
-    python -m Baseline.generate_shade_attacks \
+    python -m Baseline.attack_gen.generate_shade_attacks \
         --shade-root /path/to/SHADE_Arena \
         --env banking \
         --output-dir output/shade_attacks/banking \
@@ -36,7 +36,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from Baseline.shade_tool_extractor import (
+from Baseline.attack_gen.shade_tool_extractor import (
     ENVIRONMENT_TOOL_FILES,
     build_tool_capabilities_string,
     extract_for_environment,

@@ -1,0 +1,38 @@
+# MCP/docker/docker-compose.yml
+#
+# Base MCP servers for STAC evaluation.  Containers stay running and are
+# accessed via `docker exec -i` over stdio transport (no supergateway).
+#
+# Usage:
+#   cd MCP/docker && docker compose up -d
+#   docker compose down   # to stop
+#
+# The eval harness connects to these containers via stdio:
+#   python MCP/run_eval.py --config oas_gpt41
+
+networks:
+  sandbox:
+    driver: bridge
+
+services:
+  filesystem:
+    image: node:20-slim
+    container_name: mcp-filesystem
+    # Pre-install the MCP package, then idle so `docker exec -i` can invoke it
+    command: ["sh", "-c", "npm install -g @modelcontextprotocol/server-filesystem && exec tail -f /dev/null"]
+    networks: [sandbox]
+    volumes:
+      - workspace:/workspace
+    mem_limit: 512m
+
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.52.0-noble
+    container_name: mcp-playwright
+    command: ["sh", "-c", "npm install -g @playwright/mcp && npx playwright install chromium && exec tail -f /dev/null"]
+    networks: [sandbox]
+    volumes:
+      - workspace:/workspace
+    mem_limit: 1g
+
+volumes:
+  workspace:
