@@ -78,7 +78,7 @@ attack_gen/generate_shade_attacks.py   attack_gen/attack_safetybench.py
               +------------+------------+
                            |
                            v
-                   distill_defense.py
+              distill_defense/ module
              (gen_res.json -> defense JSON)
                            |
                            v
@@ -300,210 +300,20 @@ Results are saved to `data/Eval_toolshield/<model_agent>/<defense>/`:
 - **agent_helpfulness**: -3 to 3, how helpful the agent was to the attacker
 - **prompt_harmlessness**: -3 to 3, how harmless the attack prompt appeared
 
-## Step 4: Distill Defense Experiences
+## Step 4: Distill Defense & Closed-Loop Pipeline
 
-After evaluation, the `gen_res.json` results contain full agent interaction trajectories
-(attack prompts, tool calls, agent responses, judge scores). `distill_defense.py` feeds
-these trajectories through ToolShield's two-phase experience distillation pipeline to
-produce a defense experience JSON file -- the same format used by ToolShield's bundled
-experiences (e.g., `toolshield/experiences/claude-sonnet-4.5/gmail-mcp.json`).
-
-This closes the loop: ToolShield-generated attacks are evaluated against an agent, and
-the evaluation results are distilled back into defensive guidelines that can be imported
-into any ToolShield-supported agent.
+Defense distillation and the closed-loop defense pipeline have been moved to the
+`distill_defense/` module at the repo root. See [`distill_defense/README.md`](../distill_defense/README.md)
+for full documentation.
 
 ```bash
-# Distill from ASB evaluation results (output name auto-generated from input path)
-# -> output/toolshield_asb-gpt-4-1-no_defense-toolshield-distilled-defense-experience.json
-python -m Baseline.distill_defense \
+# Distill defense from evaluation trajectories
+python -m distill_defense.distill_defense \
     --input data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json
 
-# Explicit output path (overrides auto-naming)
-python -m Baseline.distill_defense \
-    --input data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json \
-    --output output/my-custom-name.json
-
-# Only learn from successful attacks (where agent failed to refuse)
-python -m Baseline.distill_defense \
-    --input data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json \
-    --min-progress 3
-
-# Filter by specific environments
-python -m Baseline.distill_defense \
-    --input data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json \
-    --envs ProductManager HomeAssistant OS
-
-# List environments and attack progress distribution
-python -m Baseline.distill_defense \
-    --input data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json \
-    --list-envs
-
-# Dry-run (preview without LLM calls)
-python -m Baseline.distill_defense \
-    --input data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json \
-    --dry-run
-
-# Import the result into an agent
-toolshield import \
-    --exp-file output/toolshield_asb-gpt-4-1-no_defense-toolshield-distilled-defense-experience.json \
-    --agent claude_code
+# Config-driven defense pipeline (distill + evaluate)
+python -m distill_defense.pipeline_distill_and_eval_defense --config dd_asb_adaptive_distill_eval_stac
 ```
-
-When `--output` is omitted, the filename is auto-generated from the input path as:
-`<dataset>-<model>-<defense>-toolshield-distilled-defense-experience.json`
-
-The distillation uses ToolShield as a library (prompts, experience CRUD, LLM client via
-LiteLLM). By default it uses `openai/gpt-4.1` for the distillation LLM; override with
-`TOOLSHIELD_MODEL_NAME`. The script is crash-resilient (saves after each update) and
-supports `--no-resume` to start fresh.
-
-| Option | Description |
-|--------|-------------|
-| `--min-progress N` | Only process items with `final_attack_progress >= N` |
-| `--max-progress N` | Only process items with `final_attack_progress <= N` |
-| `--envs E1 E2 ...` | Only process items from these environments |
-| `--dataset D` | Only process items from `SHADE_Arena` or `Agent_SafetyBench` (by `generation_config.dataset`) |
-| `--min-id N` | Only process items with `id >= N` (e.g., `10000` for ToolShield-generated attacks) |
-| `--max-id N` | Only process items with `id < N` (e.g., `10000` for STAC-generated attacks) |
-| `--no-resume` | Start fresh (default: append to existing output) |
-| `--list-envs` | Print environments and progress distribution, then exit |
-| `--dry-run` | Preview what would be processed without LLM calls |
-
-## Closed-Loop Defense Pipeline
-
-`pipeline_distill_and_eval_defense.py` wraps the distill + evaluate steps into a single command,
-enabling end-to-end experiments like "distill defense from ASB trajectories, then
-evaluate its effectiveness on SHADE attacks."
-
-Predefined configurations are in `defense_pipeline_configs.yaml`:
-
-```bash
-# List all available configs
-python -m Baseline.pipeline_distill_and_eval_defense --list-configs
-
-# Distill from STAC-generated SHADE attacks
-python -m Baseline.pipeline_distill_and_eval_defense --config distill_stac_shade
-
-# Distill from ToolShield ASB attacks, then evaluate on STAC benchmark
-python -m Baseline.pipeline_distill_and_eval_defense --config ts_asb_adaptive_distill_eval_stac
-
-# Distill from no-planner ASB eval (largest source, ~1886 items)
-python -m Baseline.pipeline_distill_and_eval_defense --config distill_ts_asb_noplanner
-
-# Evaluate-only with a pre-distilled defense
-python -m Baseline.pipeline_distill_and_eval_defense --config eval_stac_with_ts_asb_defense
-
-# Override config values from CLI
-python -m Baseline.pipeline_distill_and_eval_defense --config ts_asb_adaptive_distill_eval_stac --batch_size 2
-
-# Run multiple configs in sequence
-python -m Baseline.pipeline_distill_and_eval_defense --config distill_stac_shade distill_ts_asb_adaptive
-```
-
-Or pass arguments directly (no config file needed):
-
-```bash
-# Full loop: distill from TS/ASB adaptive trajectories, evaluate on STAC benchmark
-python -m Baseline.pipeline_distill_and_eval_defense \
-    --trajectory data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json \
-    --eval-input data/STAC_benchmark_data.json \
-    --model_agent gpt-4.1
-
-# Cross-dataset: distill from ASB, evaluate on SHADE
-python -m Baseline.pipeline_distill_and_eval_defense \
-    --trajectory data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json \
-    --eval-input data/toolshield_shade_stac.json \
-    --model_agent gpt-4.1
-
-# Evaluate-only with a pre-distilled defense file
-python -m Baseline.pipeline_distill_and_eval_defense \
-    --defense-file output/toolshield_asb-gpt-4-1-no_defense-toolshield-distilled-defense-experience.json \
-    --eval-input data/STAC_benchmark_data.json \
-    --model_agent gpt-4.1 \
-    --steps evaluate
-
-# Use STAC adaptive planner instead of eval_baseline
-python -m Baseline.pipeline_distill_and_eval_defense \
-    --trajectory data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json \
-    --eval-input data/STAC_benchmark_data.json \
-    --model_agent gpt-4.1 \
-    --evaluator stac
-
-# Distill only (skip evaluation)
-python -m Baseline.pipeline_distill_and_eval_defense \
-    --trajectory data/Eval_restructured/stac/shade_arena/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json \
-    --steps distill
-```
-
-### Defense Pipeline Configs
-
-Seven distinct trajectory data sources are available under `data/Eval_restructured/`, each with its own file:
-
-```
-data/Eval_restructured/
-  ├── stac/
-  │   ├── agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/
-  │   │   ├── gen_res.json       (93)   ← Source 3: STAC/ASB paper
-  │   │   └── gen_res_full.json  (422)  ← Source 2: STAC/ASB gen
-  │   └── shade_arena/adaptive/gpt-4.1_gpt-4.1/no_defense/
-  │       └── gen_res.json       (390)  ← Source 1: STAC/SHADE
-  └── toolshield/
-      ├── agent_safetybench/
-      │   ├── adaptive/gpt-4.1_gpt-4.1/no_defense/
-      │   │   └── gen_res.json       (200)  ← Source 5: TS/ASB adaptive
-      │   └── no_planner/gpt-4.1/no_defense/
-      │       └── eval_results.json  (1886) ← Source 7: TS/ASB no planner
-      └── shade_arena/
-          ├── adaptive/gpt-4.1_gpt-4.1/no_defense/
-          │   └── gen_res.json       (124)  ← Source 4: TS/SHADE adaptive
-          └── no_planner/gpt-4.1/no_defense/
-              └── eval_results.json  (131)  ← Source 6: TS/SHADE no planner
-```
-
-| # | Source | Eval Type | ~Items |
-|---|--------|-----------|--------|
-| 1 | STAC/SHADE | Adaptive | 390 |
-| 2 | STAC/ASB-gen | Adaptive | 422 |
-| 3 | STAC/ASB-paper | Adaptive | 93 |
-| 4 | TS/SHADE | Adaptive | 124 |
-| 5 | TS/ASB | Adaptive | 200 |
-| 6 | TS/SHADE | No Planner | 131 |
-| 7 | TS/ASB | No Planner | 1886 |
-
-**Distill-only configs:**
-
-| Config | Source | Description |
-|--------|--------|-------------|
-| `distill_stac_shade` | 1 | STAC-generated SHADE attacks (adaptive) |
-| `distill_stac_shade_successful` | 1 | Same, only successful attacks (progress >= 3) |
-| `distill_stac_asb_gen` | 2 | STAC-generated ASB attacks from gen pipeline |
-| `distill_stac_asb_paper` | 3 | STAC-generated ASB attacks in paper benchmark |
-| `distill_ts_shade_adaptive` | 4 | ToolShield SHADE attacks (adaptive) |
-| `distill_ts_asb_adaptive` | 5 | ToolShield ASB attacks (adaptive) |
-| `distill_ts_asb_adaptive_successful` | 5 | Same, only successful attacks (progress >= 3) |
-| `distill_ts_shade_noplanner` | 6 | ToolShield SHADE attacks (no planner) |
-| `distill_ts_asb_noplanner` | 7 | ToolShield ASB attacks (no planner, largest set) |
-
-**Distill + evaluate configs:**
-
-| Config | Source | Eval Target |
-|--------|--------|-------------|
-| `stac_shade_distill_eval_stac` | 1 | STAC benchmark |
-| `stac_asb_gen_distill_eval_stac` | 2 | STAC benchmark |
-| `stac_asb_paper_distill_eval_stac` | 3 | STAC benchmark |
-| `ts_shade_adaptive_distill_eval_stac` | 4 | STAC benchmark |
-| `ts_asb_adaptive_distill_eval_stac` | 5 | STAC benchmark |
-| `ts_asb_adaptive_distill_eval_shade` | 5 | SHADE ToolShield attacks |
-| `ts_asb_adaptive_distill_eval_asb` | 5 | ASB ToolShield attacks (self-defense) |
-| `ts_shade_noplanner_distill_eval_stac` | 6 | STAC benchmark |
-| `ts_asb_noplanner_distill_eval_stac` | 7 | STAC benchmark |
-
-**Evaluate-only configs** (use pre-distilled defense files):
-
-| Config | Description |
-|--------|-------------|
-| `eval_stac_with_ts_asb_defense` | Evaluate STAC benchmark with TS/ASB adaptive defense |
-| `eval_shade_with_ts_asb_defense` | Evaluate SHADE attacks with TS/ASB adaptive defense |
 
 ## File Reference
 
@@ -515,9 +325,7 @@ data/Eval_restructured/
 | `attack_gen/attack_safetybench.py` | Generate ToolShield attacks for Agent_SafetyBench |
 | `convert_to_stac.py` | Convert ToolShield output -> STAC benchmark JSON |
 | `eval_baseline.py` | Evaluate attacks without planner: agent execution + LLM judge |
-| `distill_defense.py` | **Distill defense experiences** from evaluation results into ToolShield-format JSON |
-| `pipeline_distill_and_eval_defense.py` | **Closed-loop wrapper**: distill defense from trajectories + evaluate with defense applied |
-| `defense_pipeline_configs.yaml` | Predefined configurations for the distill + evaluate defense pipeline |
 | `STAC_eval/eval_STAC_benchmark.py` | Evaluate attacks with full adaptive planning (Planner + Agent + Judge) |
+| `distill_defense/` | **Defense distillation module** (moved from Baseline): distill + evaluate pipeline |
 | `toolshield_patch.py` | Monkey-patches ToolShield to use LiteLLM instead of OpenRouter (imported automatically) |
 | `attack_gen/shade_tool_extractor.py` | Helper library: extract tool schemas from SHADE-Arena (used by `generate_shade_attacks.py`) |

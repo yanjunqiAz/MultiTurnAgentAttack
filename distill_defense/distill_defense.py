@@ -1,39 +1,38 @@
 #!/usr/bin/env python3
 """
-Distill ToolShield defense experiences from STAC adaptive evaluation results.
+Distill defense experiences from STAC adaptive evaluation results.
 
 Reads gen_res.json (output of eval_baseline.py or eval_STAC_benchmark.py) and
-runs ToolShield's two-phase experience distillation:
+runs two-phase experience distillation (via ToolShield library):
   Phase 1: Trajectory summarization (LLM analyzes the interaction history)
   Phase 2: Experience learning (LLM extracts safety guidelines)
 
-Produces a JSON file in the same format as ToolShield's bundled experiences
-(e.g., toolshield/experiences/claude-sonnet-4.5/gmail-mcp.json).
+Produces a JSON defense experience file compatible with ToolShield's format.
 
 Usage:
     # Distill from ASB evaluation results (output name auto-generated)
-    # -> output/toolshield_asb-gpt-4-1-no_defense-toolshield-distilled-defense-experience.json
-    python -m Baseline.distill_defense \
+    # -> output/toolshield_asb-gpt-4-1-no_defense-distilled-defense-experience.json
+    python -m distill_defense.distill_defense \
         --input data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json
 
     # Explicit output path
-    python -m Baseline.distill_defense \
+    python -m distill_defense.distill_defense \
         --input data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json \
         --output output/my-custom-defense.json
 
     # Only learn from successful attacks (where agent failed to refuse)
-    python -m Baseline.distill_defense \
+    python -m distill_defense.distill_defense \
         --input data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json \
         --min-progress 3
 
     # Filter by environment
-    python -m Baseline.distill_defense \
+    python -m distill_defense.distill_defense \
         --input data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json \
         --envs ProductManager HomeAssistant
 
     # Import the result into an agent
     toolshield import \
-        --exp-file output/toolshield_asb-gpt-4-1-no_defense-toolshield-distilled-defense-experience.json \
+        --exp-file output/toolshield_asb-gpt-4-1-no_defense-distilled-defense-experience.json \
         --agent claude_code
 """
 
@@ -91,7 +90,7 @@ from toolshield.prompts import (
 
 
 # ---------------------------------------------------------------------------
-# Format STAC eval items into ToolShield's expected prompt inputs
+# Format STAC eval items into expected prompt inputs
 # ---------------------------------------------------------------------------
 
 def format_interaction_as_state(item: Dict[str, Any]) -> str:
@@ -142,7 +141,7 @@ def format_task_content(item: Dict[str, Any]) -> str:
 def build_tree_context(items: List[Dict[str, Any]]) -> str:
     """Build a minimal safety tree context from the set of items being processed.
 
-    ToolShield normally reads a full safety_tree.json here.  We synthesize a
+    The ToolShield library normally reads a full safety_tree.json here.  We synthesize a
     lightweight version from the attack plans so the trajectory summary prompt
     has useful context about what harms are being tested.
     """
@@ -169,7 +168,7 @@ def build_tree_context(items: List[Dict[str, Any]]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Core distillation (reuses ToolShield prompts + LLM client)
+# Core distillation (reuses prompts + LLM client from ToolShield)
 # ---------------------------------------------------------------------------
 
 def summarize_trajectory(
@@ -379,7 +378,7 @@ def _auto_output_name(input_path: Path) -> Path:
 
     Example:
         data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json
-        -> output/toolshield-agent_safetybench-adaptive-gpt-4-1_gpt-4-1-no_defense-toolshield-distilled-defense-experience.json
+        -> output/toolshield-agent_safetybench-adaptive-gpt-4-1_gpt-4-1-no_defense-distilled-defense-experience.json
 
     Also supports legacy paths like:
         data/Eval_toolshield_asb/gpt-4.1/gpt-4.1/no_defense/gen_res.json
@@ -395,7 +394,7 @@ def _auto_output_name(input_path: Path) -> Path:
             models = parts[i + 4]    # gpt-4.1_gpt-4.1 | gpt-4.1
             defense = parts[i + 5] if i + 5 < len(parts) and not parts[i + 5].endswith(".json") else "unknown"
             models_clean = models.replace(".", "-")
-            name = f"{method}-{dataset}-{mode}-{models_clean}-{defense}-toolshield-distilled-defense-experience.json"
+            name = f"{method}-{dataset}-{mode}-{models_clean}-{defense}-distilled-defense-experience.json"
             return Path("output") / name
 
     # Legacy fallback: .../Eval_<tag>/<model>/.../<defense>/gen_res.json
@@ -415,7 +414,7 @@ def _auto_output_name(input_path: Path) -> Path:
         defense = parent
 
     model_clean = model.replace("/", "-").replace(".", "-")
-    name = f"{dataset}-{model_clean}-{defense}-toolshield-distilled-defense-experience.json"
+    name = f"{dataset}-{model_clean}-{defense}-distilled-defense-experience.json"
     return Path("output") / name
 
 
@@ -425,7 +424,7 @@ def _auto_output_name(input_path: Path) -> Path:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Distill ToolShield defense experiences from STAC evaluation results",
+        description="Distill defense experiences from STAC evaluation results",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -437,7 +436,7 @@ def main() -> None:
         "--output", type=Path, default=None,
         help="Output path for the defense experience JSON. "
              "If omitted, auto-generated from the input path as: "
-             "<dataset>-<model>-<defense>-toolshield-distilled-defense-experience.json",
+             "<dataset>-<model>-<defense>-distilled-defense-experience.json",
     )
     parser.add_argument(
         "--min-progress", type=int, default=None,
@@ -458,7 +457,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--min-id", type=int, default=None,
-        help="Only process items with id >= N (e.g., 10000 for ToolShield-generated attacks)",
+        help="Only process items with id >= N (e.g., 10000 for baseline-generated attacks)",
     )
     parser.add_argument(
         "--max-id", type=int, default=None,

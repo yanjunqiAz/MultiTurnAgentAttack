@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Module Does
 
-Baseline implements ToolShield-based attack generation as a comparison baseline for STAC. It generates attacks using ToolShield's tree generation, converts them to STAC format, evaluates them against LLM agents, and distills evaluation trajectories into defensive experience files. Two config-driven pipelines orchestrate the workflow.
+Baseline implements ToolShield-based attack generation as a comparison baseline for STAC. It generates attacks using ToolShield's tree generation, converts them to STAC format, and evaluates them against LLM agents. Defense distillation has been moved to the `distill_defense/` module.
 
 ## Commands
 
@@ -24,12 +24,9 @@ python -m Baseline.run_baseline_pipeline --steps evaluate --input_path data/STAC
 # Evaluate without planner (no adaptive replanning)
 python -m Baseline.eval_baseline --input_path data/toolshield_shade_stac.json --model_agent gpt-4.1
 
-# Distill defense from evaluation trajectories
-python -m Baseline.distill_defense --input data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json
-
-# Config-driven defense pipeline (distill + evaluate)
-python -m Baseline.pipeline_distill_and_eval_defense --config ts_asb_adaptive_distill_eval_stac
-python -m Baseline.pipeline_distill_and_eval_defense --list-configs
+# Defense distillation (see distill_defense/ module)
+python -m distill_defense.distill_defense --input data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json
+python -m distill_defense.pipeline_distill_and_eval_defense --config dd_asb_adaptive_distill_eval_stac
 ```
 
 ## Module Structure
@@ -49,19 +46,17 @@ Baseline/
 ├── eval_baseline.py                     #   Evaluate attacks without planner (agent + judge)
 ├── convert_to_stac.py                   #   Convert ToolShield output → STAC benchmark JSON
 ├── convert_step4_to_benchmark.py        #   Convert Step 4 output to benchmark format
-├── distill_defense.py                   #   Distill eval trajectories → ToolShield defense JSON
-├── pipeline_distill_and_eval_defense.py #   Closed-loop: distill defense + evaluate with defense
-├── defense_pipeline_configs.yaml        #   Named configs for defense pipeline
 ├── toolshield_patch.py                  #   Monkey-patches ToolShield to use LiteLLM at runtime
 └── README.md                            #   Full documentation with usage examples
 ```
 
 ## Architecture
 
-### Two Pipelines
+### Attack Pipeline
 
-1. **Attack pipeline** (`run_baseline_pipeline.py`): generate → convert → evaluate. Config: `toolshield_attack_configs.yaml`.
-2. **Defense pipeline** (`pipeline_distill_and_eval_defense.py`): distill defense from eval trajectories → evaluate with defense applied. Config: `defense_pipeline_configs.yaml`.
+`run_baseline_pipeline.py`: generate → convert → evaluate. Config: `toolshield_attack_configs.yaml`.
+
+The **defense pipeline** (distill + evaluate) has moved to `distill_defense/`.
 
 ### Key Data Flow
 
@@ -69,7 +64,7 @@ Baseline/
 ToolShield attack generation (attack_gen/)
     → convert_to_stac.py (ToolShield output → STAC JSON)
     → eval_baseline.py (no planner) OR STAC_eval/eval_STAC_benchmark.py (adaptive planner)
-    → distill_defense.py (gen_res.json → ToolShield defense experience JSON)
+    → distill_defense/ module (gen_res.json → ToolShield defense experience JSON)
     → toolshield import --exp-file ... (inject into agent)
 ```
 
@@ -82,8 +77,7 @@ ToolShield attack generation (attack_gen/)
 
 - **ToolShield patch**: `toolshield_patch.py` monkey-patches `toolshield.tree_generation.client` at runtime to use LiteLLM instead of ToolShield's hardcoded OpenRouter client. Attack gen scripts import this automatically.
 - **STAC format**: `convert_to_stac.py` auto-detects SHADE vs ASB from environment names and resolves tool names against benchmark schemas.
-- **Defense distillation**: `distill_defense.py` uses ToolShield's two-phase experience learning pipeline as a library. Output format matches ToolShield's bundled experience files.
-- **Config YAML**: Both pipelines support named configs with `env:` blocks for API keys, `--list-configs` to show available configs, and CLI overrides.
+- **Config YAML**: The attack pipeline supports named configs with `env:` blocks for API keys, `--list-configs` to show available configs, and CLI overrides.
 
 ### Eval Output Structure
 
@@ -99,7 +93,7 @@ Each leaf contains `gen_res.json` (adaptive) or `eval_results.json` (no planner)
 
 ## Dependencies
 
-- **ToolShield** (`pip install git+https://github.com/CHATS-lab/ToolShield.git`) — required for `generate` and `distill_defense` steps only.
+- **ToolShield** (`pip install git+https://github.com/CHATS-lab/ToolShield.git`) — required for the `generate` step only.
 - **LiteLLM** (`pip install litellm`) — required alongside ToolShield for attack generation.
 - Evaluate-only workflows need only the base STAC dependencies.
 

@@ -73,7 +73,7 @@ Make sure to evaluate the potential consequences of helping the user in the cont
 
         Args:
             experience_file: Path to a ToolShield experience JSON file
-                (e.g., output/toolshield_asb-gpt-4-1-no_defense-toolshield-distilled-defense-experience.json)
+                (e.g., output/toolshield_asb-gpt-4-1-no_defense-distilled-defense-experience.json)
 
         Returns:
             Formatted system prompt string with all experiences as guidelines.

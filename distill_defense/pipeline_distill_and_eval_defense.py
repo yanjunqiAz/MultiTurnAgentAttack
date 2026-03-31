@@ -14,37 +14,37 @@ This enables experiments like:
 
 Usage:
     # Run a named config
-    python -m Baseline.pipeline_distill_and_eval_defense --config asb_distill_eval_stac
+    python -m distill_defense.pipeline_distill_and_eval_defense --config asb_distill_eval_stac
 
     # List all configs
-    python -m Baseline.pipeline_distill_and_eval_defense --list-configs
+    python -m distill_defense.pipeline_distill_and_eval_defense --list-configs
 
     # Full pipeline: distill from ASB eval, then evaluate on STAC benchmark
-    python -m Baseline.pipeline_distill_and_eval_defense \
+    python -m distill_defense.pipeline_distill_and_eval_defense \
         --trajectory data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json \
         --eval-input data/STAC_benchmark_data.json \
         --model_agent gpt-4.1
 
     # Distill only (skip evaluation)
-    python -m Baseline.pipeline_distill_and_eval_defense \
+    python -m distill_defense.pipeline_distill_and_eval_defense \
         --trajectory data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json \
         --steps distill
 
     # Evaluate with a pre-distilled defense file (skip distillation)
-    python -m Baseline.pipeline_distill_and_eval_defense \
-        --defense-file output/toolshield_asb-gpt-4-1-no_defense-toolshield-distilled-defense-experience.json \
+    python -m distill_defense.pipeline_distill_and_eval_defense \
+        --defense-file output/toolshield_asb-gpt-4-1-no_defense-distilled-defense-experience.json \
         --eval-input data/STAC_benchmark_data.json \
         --model_agent gpt-4.1 \
         --steps evaluate
 
     # Cross-dataset: distill from ASB, evaluate on SHADE
-    python -m Baseline.pipeline_distill_and_eval_defense \
+    python -m distill_defense.pipeline_distill_and_eval_defense \
         --trajectory data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json \
         --eval-input data/toolshield_shade_stac.json \
         --model_agent gpt-4.1
 
     # Use STAC adaptive planner for evaluation instead of eval_baseline
-    python -m Baseline.pipeline_distill_and_eval_defense \
+    python -m distill_defense.pipeline_distill_and_eval_defense \
         --trajectory data/Eval_restructured/toolshield/agent_safetybench/adaptive/gpt-4.1_gpt-4.1/no_defense/gen_res.json \
         --eval-input data/STAC_benchmark_data.json \
         --model_agent gpt-4.1 \
@@ -110,7 +110,7 @@ def list_configs() -> None:
         print(f"  {name:<30} {desc}")
         print(f"  {'':30} steps={steps}")
         print()
-    print(f"Usage: python -m Baseline.pipeline_distill_and_eval_defense --config <name>")
+    print(f"Usage: python -m distill_defense.pipeline_distill_and_eval_defense --config <name>")
 
 
 def set_env_vars(env_vars: dict[str, str]) -> dict[str, str | None]:
@@ -150,9 +150,9 @@ def run_cmd(cmd: list[str], description: str) -> None:
 def auto_defense_path(trajectory_path: Path) -> Path:
     """Derive the defense output path using distill_defense's naming convention."""
     # Import the auto-naming function from distill_defense
-    # We do a lazy import to avoid the heavy toolshield patching at CLI parse time
+    # We do a lazy import to avoid the heavy ToolShield library patching at CLI parse time
     import importlib
-    mod = importlib.import_module("Baseline.distill_defense")
+    mod = importlib.import_module("distill_defense.distill_defense")
     return mod._auto_output_name(trajectory_path)
 
 
@@ -178,7 +178,7 @@ def step_distill(args: argparse.Namespace) -> Path:
     defense_path = auto_defense_path(trajectory)
 
     cmd = [
-        sys.executable, "-m", "Baseline.distill_defense",
+        sys.executable, "-m", "distill_defense.distill_defense",
         "--input", str(trajectory),
         "--output", str(defense_path),
     ]
